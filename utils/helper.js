@@ -1,35 +1,35 @@
 const nodemailer = require('nodemailer')
 const admin = require('firebase-admin');
-const serviceAccount = require('../config/firebaseConfig.json');
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-});
+//const serviceAccount = require('../config/firebaseConfig.json');
+// admin.initializeApp({
+//     credential: admin.credential.cert(serviceAccount)
+// });
 const axios = require('axios');
 const { getIoInstance } = require('../socket');
 function removeCountryCode(phoneNumber) {
     return phoneNumber.replace(/^(\+91)/, '');
 }
-const sendPushNotification = async (notification_data) => {
-    try {
-        var message = {
-            token: notification_data.device_token,
-            notification: {
-                title: 'Indilink Notification',
-                body: notification_data.messages,
-            },
-            data: {
-                ...notification_data
-            }
-        };
-        const response = await admin.messaging().send(message);
-        console.log('Notification sent:', response);
-    } catch (error) {
-        if (error.code === 'messaging/registration-token-not-registered') {
-        } else {
-            console.error('Error sending notification:', error);
-        }
-    }
-};
+// const sendPushNotification = async (notification_data) => {
+//     try {
+//         var message = {
+//             token: notification_data.device_token,
+//             notification: {
+//                 title: 'Indilink Notification',
+//                 body: notification_data.messages,
+//             },
+//             data: {
+//                 ...notification_data
+//             }
+//         };
+//         const response = await admin.messaging().send(message);
+//         console.log('Notification sent:', response);
+//     } catch (error) {
+//         if (error.code === 'messaging/registration-token-not-registered') {
+//         } else {
+//             console.error('Error sending notification:', error);
+//         }
+//     }
+// };
 const sendMail = async (otp) => {
     try {
         let email = "tech.support@indilink.in"
@@ -306,7 +306,7 @@ const sendEmail = async (recipients, subject, htmlContent) => {
 module.exports = {
     sendEmail,
     socketEventEmit,
-    sendPushNotification,
+    //sendPushNotification,
     sendMail,
     sendOtp,
     sendVerificationMessage,
