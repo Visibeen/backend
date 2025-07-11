@@ -43,7 +43,6 @@ app.group('/api', (router) => {
 	router.use("/cron", require("./api/cron_jobs"));
 	router.group('/v1', (groupV1) => {
 		groupV1.use('/errors', require("./api/errors"));
-		groupV1.use('/auth', require('./api/auth/index'));
 		groupV1.group('/customer', (groupRouter) => {
 			groupRouter.use('/auth', require('./api/customer/auth/index'));
 		});
