@@ -9,6 +9,8 @@ const moment = require("moment")
 const router = express.Router();
 const support = require('../../../utils/support');
 var REST = require("../../../utils/REST");
+const { compare } = require('../../../utils/hash');
+const auth = require('../../../utils/auth');
 
 // Save user register data
 router.post('/signUp', async function (req, res) {
@@ -68,6 +70,41 @@ router.post('/signUp', async function (req, res) {
 	}
 });
 
+// POST /login
+router.post('/login', async function (req, res) {
+    try {
+        const data = req.body;
+        const rules = {
+            email: 'required|string',
+            password: 'required|string'
+        };
+        const validator = make(data, rules);
+        if (!validator.validate()) {
+            return REST.error(res, validator.errors().all(), 422);
+        }
+        const user = await models.User.findOne({ where: { email: data.email } });
+        if (!user) {
+            return REST.error(res, 'User not found.', 404);
+        }
+        if (user.status !== constants.USER.STATUSES.ACTIVE) {
+            return REST.error(res, 'Your account is not active.', 403);
+        }
+        const passwordMatch = await compare(data.password, user.password);
+        if (!passwordMatch) {
+            return REST.error(res, 'Incorrect password.', 401);
+        }
+        const token = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
+        await models.User.update({
+            token: token,
+            login_status: constants.USER.LOGIN_STATUS.ACTIVE,
+            login_date: new Date()
+        }, { where: { id: user.id } });
+        const finalUser = await models.User.findOne({ where: { id: user.id } });
+        return REST.success(res, finalUser, 'Login successful.');
+    } catch (error) {
+        return REST.error(res, error.message, 500);
+    }
+});
 
 
 module.exports = router;
