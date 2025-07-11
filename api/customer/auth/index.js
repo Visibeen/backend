@@ -12,7 +12,7 @@ var REST = require("../../../utils/REST");
 const { compare } = require('../../../utils/hash');
 const auth = require('../../../utils/auth');
 
-// Save user register data
+// POST /api/v1/forgot-password/request
 router.post('/signUp', async function (req, res) {
 	try {
 		const { full_name, email, phone_number, password, account_type } = req.body;
@@ -70,7 +70,7 @@ router.post('/signUp', async function (req, res) {
 	}
 });
 
-// POST /login
+// POST/api/v1/customer/auth/login
 router.post('/login', async function (req, res) {
     try {
         const data = req.body;
