@@ -16,6 +16,7 @@ verifyAuthenticate = async (req, res, next) => {
         }
         const token = req.headers.authorization;
         let user = await models.User.findOne({ where: { id: cUser.userid } })
+        
         if (user == null) {
             return REST.error(res, "Account invalid", 400);
         }
