@@ -140,5 +140,9 @@ router.post('/login', async function (req, res) {
     }
 });
 
+// POST Login user
+router.post('/forgot_password', async function (req, res) {
+ console.log('DSD');
+})
 
 module.exports = router;
