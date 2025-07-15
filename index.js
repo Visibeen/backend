@@ -45,6 +45,8 @@ app.group('/api', (router) => {
 		groupV1.use('/errors', require("./api/errors"));
 		groupV1.group('/customer', (groupRouter) => {
 			groupRouter.use('/auth', require('./api/customer/auth/index'));
+			groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([3])]);
+			groupRouter.use('/profile', require('./api/customer/profile/index'));
 		});
 		groupV1.group('/portal', (groupRouter) => {
 			//groupRouter.use('/configureSetting', require('./api/portal/configure_setting/index'))
