@@ -55,6 +55,12 @@ module.exports = (sequelize, DataTypes) => {
     logout_date: {
       type: DataTypes.DATE
     },
+     reset_password_token: {
+      type: DataTypes.STRING
+    },
+    reset_password_expires: {
+      type: DataTypes.BIGINT
+    },
  }, {
     sequelize,
     freezeTableName: true,

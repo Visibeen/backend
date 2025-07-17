@@ -188,4 +188,41 @@ router.post('/forgot_password', async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
+// reset password 
+router.post('/reset_password', async function (req, res) {
+    try {
+        const { reset_password_token, new_password, confirm_password } = req.body;
+        if (!reset_password_token || typeof reset_password_token !== 'string') {
+            return REST.error(res, 'Reset token is required', 422);
+        }
+        if (!new_password || typeof new_password !== 'string') {        
+            return REST.error(res, 'Password is required', 422);
+        }
+        if (!confirm_password || typeof confirm_password !== 'string') {
+            return REST.error(res, 'Confirm password is required', 422);
+        }
+        if (new_password !== confirm_password) {
+            return REST.error(res, 'Passwords do not match', 422);
+        }
+        const user = await models.User.findOne({
+            where: {
+                reset_password_token: reset_password_token,
+                reset_password_expires: { [Op.gt]: Date.now() }
+            }
+        });
+        if (!user) {
+            return REST.error(res, 'Invalid or expired token', 400);
+        }
+        const salt = await require('bcrypt').genSalt(10);
+        const newPasswordHash = await require('bcrypt').hash(new_password, salt);
+        await models.User.update(
+            { password: newPasswordHash, reset_password_token: '', reset_password_expires: null },
+            { where: { id: user.id } }
+        );
+        return REST.success(res, null, 'Password updated successfully');
+    } catch (error) {
+        return REST.error(res, error.message, 500);
+    }
+});
+
 module.exports = router;
