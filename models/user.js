@@ -41,6 +41,15 @@ module.exports = (sequelize, DataTypes) => {
     token: {
       type: DataTypes.TEXT
     },
+    google_access_token:{
+      type:DataTypes.TEXT
+    },
+    has_gmb_access:{
+      type:DataTypes.BOOLEAN
+    },
+    last_login:{
+      type:DataTypes.DATE
+    },
     status: {
       allowNull: false,
       type: DataTypes.STRING,
