@@ -51,12 +51,12 @@ async function exchangeGoogleAuthCode(authCode) {
 		throw error;
 	}
 }
+/*
+|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|             User Auth API
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+*/
 
-=======
-const { compare } = require('../../../utils/hash');
-const auth = require('../../../utils/auth');
-
-// POST signup user
 router.post('/signUp', async function (req, res) {
 	try {
 		const { full_name, email, phone_number, password, account_type } = req.body;
@@ -220,78 +220,7 @@ router.post('/google-login', async function (req, res) {
 
 		const gmbCheck = await checkGMBAccess(accessToken);
 		let user = await models.User.findOne({ where: { email } });
-=======
-// POST Login user
-router.post('/login', async function (req, res) {
-    try {
-        const data = req.body;
-		if(data.account_type == "google"){
-			const user = await models.User.findOne({ where: { email: data.email } });
 			if (!user) {
-				const user_uid = 'UID_' + support.generateRandomNumber();
-				const userPayload = {
-					full_name: data.full_name,
-					role_id:3,
-					email: data.email,
-					phone_number: data.phone_number,
-					user_uid: user_uid,
-					account_type: data.account_type,
-					status: constants.USER.STATUSES.ACTIVE
-				};
-		
-				// Create user with transaction
-				const newUser = await models.sequelize.transaction(async (transaction) => {
-					return await models.User.create(userPayload, { transaction });
-				});
-
-				const token = auth.shortTermToken({ userid: newUser.id }, config.USER_SECRET);
-				await models.User.update({
-					token: token,
-					login_date: new Date()
-				}, { where: { id: newUser.id } });
-				const finalUser = await models.User.findOne({ where: { id: newUser.id } });
-				return REST.success(res, finalUser, 'Login successful.');
-			}else{
-				const token1 = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
-				await models.User.update({
-					token: token1,
-					login_date: new Date()
-				}, { where: { id: user.id } });
-				const finalUser1 = await models.User.findOne({ where: { id: user.id } });
-				return REST.success(res, finalUser1, 'Login successful.');
-			}
-		}else{
-			const user = await models.User.findOne({ where: { email: data.email } });
-			if (!user) {
-				return REST.error(res, 'User not found.', 404);
-			}
-			const rules = {
-				email: 'required',
-				password: 'required'
-			};
-			const validator = make(data, rules);
-			if (!validator.validate()) {
-				return REST.error(res, validator.errors().all(), 422);
-			}
-	
-			const passwordMatch = await compare(data.password, user.password);
-			if (!passwordMatch) {
-				return REST.error(res, 'Incorrect password.', 401);
-			}
-			const token = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
-			await models.User.update({
-				token: token,
-				login_date: new Date()
-			}, { where: { id: user.id } });
-			const finalUser = await models.User.findOne({ where: { id: user.id } });
-			return REST.success(res, finalUser, 'Login successful.');
-		}
-    } catch (error) {
-        return REST.error(res, error.message, 500);
-    }
-});
-
-		if (!user) {
 			// Create new user
 			const user_uid = 'UID_' + support.generateRandomNumber();
 			const userPayload = {
@@ -338,58 +267,6 @@ router.post('/login', async function (req, res) {
 
 	} catch (error) {
 		console.error('Google login error:', error);
-		return REST.error(res, error.message, 500);
-	}
-});
-router.post('/link-google', async function (req, res) {
-	try {
-		const { googleEmail, googleAccessToken, googleDisplayName } = req.body;
-		const authHeader = req.headers.authorization;
-
-		if (!authHeader || !authHeader.startsWith('Bearer ')) {
-			return REST.error(res, 'Authorization token required.', 401);
-		}
-
-		const token = authHeader.split(' ')[1];
-		let decoded;
-		try {
-			decoded = auth.verifyToken(token, config.USER_SECRET);
-		} catch (error) {
-			return REST.error(res, 'Invalid or expired token.', 401);
-		}
-
-		if (!googleEmail || !googleAccessToken) {
-			return REST.error(res, 'Google email and access token are required.', 400);
-		}
-
-		// Find the current user
-		const user = await models.User.findOne({ where: { id: decoded.userid } });
-		if (!user) {
-			return REST.error(res, 'User not found.', 404);
-		}
-
-		// Check if user has GMB access
-		const gmbCheck = await checkGMBAccess(googleAccessToken);
-
-		// Update user with Google information
-		await models.User.update({
-			google_access_token: googleAccessToken,
-			has_gmb_access: gmbCheck.hasGMBAccess,
-			last_login: new Date()
-		}, { where: { id: user.id } });
-
-		const updatedUser = await models.User.findOne({ where: { id: user.id } });
-
-		// Return response with GMB status
-		return REST.success(res, {
-			user: updatedUser,
-			hasGMBAccess: gmbCheck.hasGMBAccess,
-			gmbAccounts: gmbCheck.accounts || [],
-			redirectTo: gmbCheck.hasGMBAccess ? '/dashboard' : '/account-not-found'
-		}, 'Google account linked successfully.');
-
-	} catch (error) {
-		console.error('Link Google error:', error);
 		return REST.error(res, error.message, 500);
 	}
 });
@@ -513,4 +390,5 @@ router.post('/update_Password', async function (req, res) {
 		return REST.error(res, error.message, 500);
 	}
 });
+
 module.exports = router;
