@@ -269,7 +269,7 @@ router.post('/google-login', async function (req, res) {
 		console.error('Google login error:', error);
 		return REST.error(res, error.message, 500);
 	}
-});
+});  
 router.post('/forget_password', async function (req, res) {
 	try {
 		const data = req.body;
