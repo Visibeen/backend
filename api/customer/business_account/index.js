@@ -34,13 +34,13 @@ router.post('/create-business', async function(req, res) {
                            business_name: req.body.business_name,
                            business_category: req.body.business_category,
                            is_location: req.body.is_location,
-                           lat: req.body.let,
+                           lat: req.body.lat,
                            long: req.body.long,
                            country: req.body.country,
-                           street_address :req.body.require,
+                           street_address :req.body.street_address,
                            city: req.body.city,
                            state: req.body.state,
-                           pin_code: req.body.pincode,
+                           pin_code: req.body.pin_code,
                            is_business: req.body.is_business,
                            contact_number: req.body.contact_number,
                            select_area: req.body.select_area,
@@ -49,8 +49,6 @@ router.post('/create-business', async function(req, res) {
                            chat: req.body.chat,
                            website: req.body.website,
                            status: req.body.status,
-
-                           added_by: cUser.id,
                        },
                            {
                                transaction: transaction
@@ -58,12 +56,9 @@ router.post('/create-business', async function(req, res) {
                        )
                        return data
                    })
-                           return REST.success(res, business, 'Business account created successfully');
-                
-
+ return REST.success(res, business, 'Business account created successfully');
     } catch (error) {
-return REST.error(res, error.message, 500);
-        
+return REST.error(res, error.message, 500); 
     }
 })
 router.get('/get-business-account', async function(req, res) {

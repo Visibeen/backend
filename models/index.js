@@ -4,7 +4,7 @@ const db = {};
 
 const User = require('./user.js')(sequelize, Sequelize.DataTypes);
 const user_role = require('./user_role.js')(sequelize, Sequelize.DataTypes);
-const business_account = require('./business_acount.js')(sequelize, Sequelize.DataTypes);
+const business_account = require('./business_account.js')(sequelize, Sequelize.DataTypes);
 
 //  user and user_ firm relationship
 // User_firm.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
