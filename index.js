@@ -52,8 +52,6 @@ app.group('/api', (router) => {
 			//groupRouter.use('/configureSetting', require('./api/portal/configure_setting/index'))
 			//groupRouter.use("/users", require("./api/portal/users/index"));
 			//groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([1, 2])]);
-			
-
 		});
 		groupV1.group('/admin_portal', (groupRouter) => {
 			//groupRouter.use('/auth', require('./api/admin_portal/user_auth/index'));
@@ -63,31 +61,6 @@ app.group('/api', (router) => {
 		})
 	});
 });
-
-let BASE_URL;
-if (process.env.NODE_ENV === 'development') {
-	BASE_URL = process.env.BASE_URL_DEV;
-} else if (process.env.NODE_ENV === 'staging') {
-	BASE_URL = process.env.BASE_URL_STAGE;
-} else if (process.env.NODE_ENV === 'production') {
-	BASE_URL = process.env.BASE_URL_PROD;
-} else {
-	throw new Error("Invalid NODE_ENV value");
-}
-// Schedule a task to run every day at 12:00 AM
-// cron.schedule('0 0 * * *', async () => {
-// 	console.log('Running a task every day at 12:00 AM');
-// 	try {
-// 		const response = await axios.get(`${BASE_URL}/api/cron/terminateQuotation`);
-// 		if (response.status === 200) {
-// 			console.log('Cron job run successfully!', response.data);
-// 		} else {
-// 			console.warn(`Cron job completed with status: ${response.status}`);
-// 		}
-// 	} catch (error) {
-// 		console.error('Cron job failed to run!', error.message);
-// 	}
-// });
 
 var httpServer = http.createServer(app);
 initSocket(httpServer);
