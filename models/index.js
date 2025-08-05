@@ -4,6 +4,7 @@ const db = {};
 
 const User = require('./user.js')(sequelize, Sequelize.DataTypes);
 const user_role = require('./user_role.js')(sequelize, Sequelize.DataTypes);
+const business_account = require('./business_acount.js')(sequelize, Sequelize.DataTypes);
 
 //  user and user_ firm relationship
 // User_firm.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
@@ -12,6 +13,8 @@ const user_role = require('./user_role.js')(sequelize, Sequelize.DataTypes);
 module.exports = db;
 db.User = User;
 db.user_role = user_role;
+db.business_account = business_account
+
 
 Object.keys(db).forEach(modelName => {
   if (db[modelName].associate) {
