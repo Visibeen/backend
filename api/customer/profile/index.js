@@ -12,6 +12,23 @@ var REST = require("../../../utils/REST");
 const { compare } = require('../../../utils/hash');
 const auth = require('../../../utils/auth');
 
+
+
+async function getBusinessProfile(req, res) {
+  try {
+    const accessToken = await auth.getAccessToken();
+    const response = await axios.get('https://businessprofile.googleapis.com/v1/accounts', {
+      headers: {
+        Authorization: `Bearer ${accessToken.token}`,
+      },
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error fetching business profile:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to fetch business profile' });
+  }
+}
+
 // Get user profile
 router.get("/get", async function (req, res) {
 	try {
@@ -102,7 +119,6 @@ async function getUser(user_id) {
 	});
 	return user;
 }
-
 
 
 module.exports = router;

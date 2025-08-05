@@ -8,8 +8,7 @@ const models = require('../../../models');
 const moment = require("moment")
 const router = express.Router();
 const support = require('../../../utils/support');
-var REST = require("../../../utils/REST");
-
+var REST = require("../../../utils/REST");     
 const { compare, gen } = require('../../../utils/hash');
 const auth = require('../../../utils/auth');
 const axios = require('axios');
@@ -390,5 +389,4 @@ router.post('/update_Password', async function (req, res) {
 		return REST.error(res, error.message, 500);
 	}
 });
-
 module.exports = router;
