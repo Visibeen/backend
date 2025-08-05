@@ -12,6 +12,9 @@ var REST = require("../../../utils/REST");
 const { compare, gen } = require('../../../utils/hash');
 const auth = require('../../../utils/auth');
 const axios = require('axios');
+const nodemailer = require('nodemailer')
+const bcrypt = require('bcrypt');
+
 
 async function checkGMBAccess(googleAccessToken) {
 	try {
@@ -47,6 +50,7 @@ async function exchangeGoogleAuthCode(authCode) {
 		throw error;
 	}
 }
+
 // POST signup user
 router.post('/signUp', async function (req, res) {
 	try {
@@ -188,17 +192,14 @@ router.post('/login', async function (req, res) {
 		return REST.error(res, error.message, 500);
 	}
 });
-// POST Google OAuth Login with GMB checking
 router.post('/google-login', async function (req, res) {
 	try {
 		const { email, googleAccessToken, authCode } = req.body;
-
 		if (!email) {
 			return REST.error(res, 'Email is required.', 400);
 		}
 
 		let accessToken = googleAccessToken;
-		// If we have an auth code but no access token, exchange it
 		if (!accessToken && authCode) {
 			try {
 				const tokenData = await exchangeGoogleAuthCode(authCode);
@@ -212,10 +213,7 @@ router.post('/google-login', async function (req, res) {
 			return REST.error(res, 'Google access token is required.', 400);
 		}
 
-		// Check if user has GMB access
 		const gmbCheck = await checkGMBAccess(accessToken);
-
-		// Find or create user       
 		let user = await models.User.findOne({ where: { email } });
 
 		if (!user) {
@@ -268,7 +266,6 @@ router.post('/google-login', async function (req, res) {
 		return REST.error(res, error.message, 500);
 	}
 });
-// POST Link Google account to existing user
 router.post('/link-google', async function (req, res) {
 	try {
 		const { googleEmail, googleAccessToken, googleDisplayName } = req.body;
@@ -321,9 +318,124 @@ router.post('/link-google', async function (req, res) {
 		return REST.error(res, error.message, 500);
 	}
 });
+router.post('/forget_password', async function (req, res) {
+	try {
+		const data = req.body;
+		const rules = {
+			email: "required|string|email",
+		};
+		const validator = make(data, rules);
 
+		if (!validator.validate()) {
+			return REST.error(res, validator.errors().all(), 422);
+		}
 
+		const user = await models.User.findOne({ where: { email: data.email } });
+		if (!user) {
+			return REST.error(res, 'User not found', 404);
+		}
+		const crypto = require('crypto');
+		const token = crypto.randomBytes(20).toString('hex');
+		user.reset_password_token = token;
+		user.reset_password_expires = Date.now() + 3600000; 
+		await user.save();
+		const resetLink = `http://localhost:8089/api/v1/auth/reset-password/${user.id}/${token}`;
+		const transporter = nodemailer.createTransport({
+			host: "sandbox.smtp.mailtrap.io",
+			port: 2525,
+			auth: {
+				user: "7c07a528a3fcd9",
+				pass: "ed6d822f4b60e2"
+			}
+		});
 
+		const mailOptions = {
+			from: '"Raman Foo Koch 👻" <raman@e2edight.com>',
+			to: user.email,
+			subject: "Reset your Password",
+		
+			     
+		};
 
+		transporter.sendMail(mailOptions, function (error, info) {
+			if (error) {
+				return res.status(500).json({
+					success: false,
+					message: "Error sending email",
+				});
+			} else {
+				return res.status(200).json({
+					success: true,
+					message: "Password reset email sent",
+					body: { resetLink },
+				});
+			}
+		});
 
+	} catch (error) {
+		return REST.error(res, error.message, 500);
+	}
+});
+router.get('/reset-password:/id:token', async function (req, res) {
+	try {
+		const { id, token } = req.params;
+		const user = await models.User.findOne({
+			where: {
+				id: id,
+				s : token,
+				reset_password_expires: { $gt: Date.now() }
+			}
+		});
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: "Token not found or expired",
+			});
+		}
+		return res.status(200).json({
+			success: true,
+			message: "Token found and valid",
+			body: {},
+		});
+	} catch (error) {
+		return REST.error(res, error.message, 500);
+	}
+})
+router.post('/update_Password', async function (req, res) {
+	try {
+		let checkToken = await models.User.findOne({
+			where: {
+				reset_password_token: req.body.token,
+			},
+		});
+		if (checkToken) {
+			const data = req.body;
+			const rules = {
+				password: 'required|string',
+				confirm_password: 'required|string',
+			};
+
+			const validator = make(data, rules);
+			if (!validator.validate()) {
+				return REST.error(res, validator.errors().all(), 422);
+			}
+
+			const salt = await bcrypt.genSalt(10);
+			const newPasswordHash = await bcrypt.hash(req.body.password, salt);
+			await models.User.update({
+				password: newPasswordHash,
+				reset_password_token: '',
+			}, {
+				where: {
+					reset_password_token: req.body.token,
+				},
+			})
+			return REST.success(res, null, 'Password updated successfully')
+		} else {
+			return REST.error(res, 'Invalid token', 401);
+		}
+	} catch (error) {
+		return REST.error(res, error.message, 500);
+	}
+});
 module.exports = router;
