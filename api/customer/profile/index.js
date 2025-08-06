@@ -11,23 +11,33 @@ const support = require('../../../utils/support');
 var REST = require("../../../utils/REST");
 const { compare } = require('../../../utils/hash');
 const auth = require('../../../utils/auth');
+const axios = require('axios');
 
 
+router.get('/getBusinessProfile', async function (req, res) {
+	try {
+		const { googleAccessToken } = req.query;
+		if (!googleAccessToken) {
+			return REST.error(res, 'Google access token is required.', 400);
+		}
+		const response = await axios.get('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
+			headers: {
+				'Authorization': `Bearer ${googleAccessToken}`,
+				'Content-Type': 'application/json',
+			},
+		});
+		if (response.data && response.data.accounts && response.data.accounts.length > 0) {
+			return REST.success(res, response.data.accounts, 'GMB profiles found.');
+		} else {
+			return REST.error(res, 'No GMB profiles found.', 404);
+		}
+	} catch (error) {
+		const status = error?.response?.status || 500;
+		const message = error?.response?.data?.error?.message || 'Failed to retrieve GMB accounts.';
+		return REST.error(res, message, status);
+	}
+});
 
-async function getBusinessProfile(req, res) {
-  try {
-    const accessToken = await auth.getAccessToken();
-    const response = await axios.get('https://businessprofile.googleapis.com/v1/accounts', {
-      headers: {
-        Authorization: `Bearer ${accessToken.token}`,
-      },
-    });
-    res.json(response.data);
-  } catch (error) {
-    console.error('Error fetching business profile:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Failed to fetch business profile' });
-  }
-}
 
 // Get user profile
 router.get("/get", async function (req, res) {
