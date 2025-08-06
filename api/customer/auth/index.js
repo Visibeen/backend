@@ -8,7 +8,7 @@ const models = require('../../../models');
 const moment = require("moment")
 const router = express.Router();
 const support = require('../../../utils/support');
-var REST = require("../../../utils/REST");     
+var REST = require("../../../utils/REST");
 const { compare, gen } = require('../../../utils/hash');
 const auth = require('../../../utils/auth');
 const axios = require('axios');
@@ -23,7 +23,7 @@ async function checkGMBAccess(googleAccessToken) {
 				'Authorization': `Bearer ${googleAccessToken}`,
 				'Content-Type': 'application/json',
 			},
-		});		
+		});
 		if (response.data && response.data.accounts && response.data.accounts.length > 0) {
 			return {
 				hasGMBAccess: true,
@@ -38,12 +38,12 @@ async function checkGMBAccess(googleAccessToken) {
 }
 async function exchangeGoogleAuthCode(authCode) {
 	try {
-		const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {			
+		const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
 			client_id: process.env.GOOGLE_CLIENT_ID,
 			client_secret: process.env.GOOGLE_CLIENT_SECRET,
 			code: authCode,
 			grant_type: 'authorization_code',
-		});		
+		});
 		return tokenResponse.data;
 	} catch (error) {
 		console.error('Error exchanging auth code:', error.response?.data || error.message);
@@ -184,7 +184,7 @@ router.post('/login', async function (req, res) {
 				login_date: new Date()
 			}, { where: { id: user.id } });
 
-			const finalUser = await models.User.findOne({ where: { id: user.id } });			
+			const finalUser = await models.User.findOne({ where: { id: user.id } });
 			return REST.success(res, {
 				user: finalUser,
 				hasGMBAccess: hasGMBAccess,
@@ -219,7 +219,7 @@ router.post('/google-login', async function (req, res) {
 
 		const gmbCheck = await checkGMBAccess(accessToken);
 		let user = await models.User.findOne({ where: { email } });
-			if (!user) {
+		if (!user) {
 			// Create new user
 			const user_uid = 'UID_' + support.generateRandomNumber();
 			const userPayload = {
@@ -268,7 +268,7 @@ router.post('/google-login', async function (req, res) {
 		console.error('Google login error:', error);
 		return REST.error(res, error.message, 500);
 	}
-});  
+});
 router.post('/forget_password', async function (req, res) {
 	try {
 		const data = req.body;
@@ -288,7 +288,7 @@ router.post('/forget_password', async function (req, res) {
 		const crypto = require('crypto');
 		const token = crypto.randomBytes(20).toString('hex');
 		user.reset_password_token = token;
-		user.reset_password_expires = Date.now() + 3600000; 
+		user.reset_password_expires = Date.now() + 3600000;
 		await user.save();
 		const resetLink = `http://localhost:8089/api/v1/auth/reset-password/${user.id}/${token}`;
 		const transporter = nodemailer.createTransport({
@@ -304,8 +304,8 @@ router.post('/forget_password', async function (req, res) {
 			from: '"Raman Foo Koch 👻" <raman@e2edight.com>',
 			to: user.email,
 			subject: "Reset your Password",
-		
-			     
+
+
 		};
 
 		transporter.sendMail(mailOptions, function (error, info) {
@@ -333,7 +333,7 @@ router.get('/reset-password:/id:token', async function (req, res) {
 		const user = await models.User.findOne({
 			where: {
 				id: id,
-				s : token,
+				s: token,
 				reset_password_expires: { $gt: Date.now() }
 			}
 		});
@@ -389,15 +389,16 @@ router.post('/update_Password', async function (req, res) {
 		return REST.error(res, error.message, 500);
 	}
 });
-router.get('/search_gmb_profile', async function(req, res) {
+router.post('/search_gmb_profile', async function (req, res) {
 	try {
 		const { googleAccessToken, searchQuery } = req.query;
-		if (!googleAccessToken) {
+		if (googleAccessToken) {
 			return REST.error(res, 'Google access token is required.', 400);
 		}
-		if (!searchQuery) {
+		if (searchQuery) {
 			return REST.error(res, 'Search query is required.', 400);
 		}
+
 		const response = await axios.get('https://mybusinessbusinessinformation.googleapis.com/v1/accounts', {
 			headers: {
 				'Authorization': `Bearer ${googleAccessToken}`,
@@ -407,8 +408,9 @@ router.get('/search_gmb_profile', async function(req, res) {
 				query: searchQuery,
 			},
 		});
-
 		if (response.data && response.data.accounts && response.data.accounts.length > 0) {
+			console.log('GMB profiles found:', response.data.accounts);
+			
 			return REST.success(res, response.data.accounts, 'GMB profiles found.');
 		} else {
 			return REST.error(res, 'No GMB profiles found for the given query.', 404);
