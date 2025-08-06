@@ -47,19 +47,9 @@ app.group('/api', (router) => {
 			groupRouter.use('/auth', require('./api/customer/auth/index'));
 			groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([3])]);
 			groupRouter.use('/profile', require('./api/customer/profile/index'));
-			groupRouter.use('/account', require('./api/customer/business_account/index'))
+			groupRouter.use('/account', require('./api/customer/business_account/index'));
+			groupRouter.use('/contact-us', require('./api/customer/contact_us/index'));
 		});
-		groupV1.group('/portal', (groupRouter) => {
-			//groupRouter.use('/configureSetting', require('./api/portal/configure_setting/index'))
-			//groupRouter.use("/users", require("./api/portal/users/index"));
-			//groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([1, 2])]);
-		});
-		groupV1.group('/admin_portal', (groupRouter) => {
-			//groupRouter.use('/auth', require('./api/admin_portal/user_auth/index'));
-			//groupRouter.use('/role', require('./api/admin_portal/user_role/index'))
-			//groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([3, 4])]);
-			//groupRouter.use('/admins', require('./api/admin_portal/admin/index'));
-		})
 	});
 });
 

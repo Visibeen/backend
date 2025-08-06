@@ -28,6 +28,15 @@ async function getBusinessProfile(req, res) {
     res.status(500).json({ error: 'Failed to fetch business profile' });
   }
 }
+router.get('/get-business-profile', async function (req, res) {
+  try {
+	const businessProfile = await getBusinessProfile(req, res);
+	return REST.success(res, businessProfile, 'Get business profile success.');
+  }
+  catch (error) {
+	return REST.error(res, error.message, 500);
+  }
+});
 
 // Get user profile
 router.get("/get", async function (req, res) {

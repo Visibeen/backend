@@ -389,4 +389,32 @@ router.post('/update_Password', async function (req, res) {
 		return REST.error(res, error.message, 500);
 	}
 });
+router.get('/search_gmb_profile', async function(req, res) {
+	try {
+		const { googleAccessToken, searchQuery } = req.query;
+		if (!googleAccessToken) {
+			return REST.error(res, 'Google access token is required.', 400);
+		}
+		if (!searchQuery) {
+			return REST.error(res, 'Search query is required.', 400);
+		}
+		const response = await axios.get('https://mybusinessbusinessinformation.googleapis.com/v1/accounts', {
+			headers: {
+				'Authorization': `Bearer ${googleAccessToken}`,
+				'Content-Type': 'application/json',
+			},
+			params: {
+				query: searchQuery,
+			},
+		});
+
+		if (response.data && response.data.accounts && response.data.accounts.length > 0) {
+			return REST.success(res, response.data.accounts, 'GMB profiles found.');
+		} else {
+			return REST.error(res, 'No GMB profiles found for the given query.', 404);
+		}
+	} catch (error) {
+		return REST.error(res, error.message, 500)
+	}
+})
 module.exports = router;

@@ -21,16 +21,16 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       type: DataTypes.BIGINT,
     },
-  user_id: {
-  type: DataTypes.BIGINT,
-  allowNull: false,
-  references: {
-    model: User,
-    key: 'id'
-  },
-  onUpdate: 'CASCADE',
-  onDelete: 'CASCADE'
-},
+    user_id: {
+      type: DataTypes.BIGINT,
+      allowNull: false,
+      references: {
+        model: User,
+        key: 'id'
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'CASCADE'
+    },
 
     business_name: {
       type: DataTypes.STRING,
@@ -96,9 +96,9 @@ module.exports = (sequelize, DataTypes) => {
     modelName: 'business_account',
     tableName: 'business_accounts',
     underscored: true,
-    timestamps:true,
-    paranoid:false,
-    freezeTableName:true
+    timestamps: true,
+    paranoid: false,
+    freezeTableName: true
   });
 
   return business_account;
