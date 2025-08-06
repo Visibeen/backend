@@ -389,34 +389,61 @@ router.post('/update_Password', async function (req, res) {
 		return REST.error(res, error.message, 500);
 	}
 });
+// GMB Profile Search
+const GMB_CONFIG = {
+    baseURL: 'https://mybusinessbusinessinformation.googleapis.com/v1',
+    readMask: 'name'
+};
+const getHeaders = (token) => ({
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+});
+const handleGMBError = (error, res) => {
+    console.error('GMB API Error:', error.response?.data || error.message);
+    
+    const status = error.response?.status;
+    switch (status) {
+        case 401:
+            return REST.error(res, 'Invalid or expired Google access token', 401);
+        case 403:
+            return REST.error(res, 'Insufficient permissions to access GMB API', 403);
+        case 404:
+            return REST.error(res, 'Resource not found', 404);
+        case 429:
+            return REST.error(res, 'Rate limit exceeded for GMB API', 429);
+        default:
+            return REST.error(res, `GMB API Error: ${error.message}`, 500);
+    }
+};
 router.post('/search_gmb_profile', async function (req, res) {
-	try {
-		const { googleAccessToken, searchQuery } = req.query;
-		if (googleAccessToken) {
-			return REST.error(res, 'Google access token is required.', 400);
-		}
-		if (searchQuery) {
-			return REST.error(res, 'Search query is required.', 400);
-		}
-
-		const response = await axios.get('https://mybusinessbusinessinformation.googleapis.com/v1/accounts', {
-			headers: {
-				'Authorization': `Bearer ${googleAccessToken}`,
-				'Content-Type': 'application/json',
-			},
-			params: {
-				query: searchQuery,
-			},
-		});
-		if (response.data && response.data.accounts && response.data.accounts.length > 0) {
-			console.log('GMB profiles found:', response.data.accounts);
-			
-			return REST.success(res, response.data.accounts, 'GMB profiles found.');
-		} else {
-			return REST.error(res, 'No GMB profiles found for the given query.', 404);
-		}
-	} catch (error) {
-		return REST.error(res, error.message, 500)
-	}
-})
+    try {
+        const { googleAccessToken, searchQuery } = req.body;
+        if (!googleAccessToken) {
+            return REST.error(res, 'Google access token is required', 400);
+        }
+        if (!searchQuery) {
+            return REST.error(res, 'Search query is required', 400);
+        }
+        const isAlphabetOnly = /^[a-zA-Z\s]+$/.test(searchQuery.trim());
+        if (isAlphabetOnly) {
+            const accountsResponse = await axios.get(`${GMB_CONFIG.baseURL}/accounts`, {
+                headers: getHeaders(googleAccessToken)
+            });
+            const accounts = accountsResponse.data?.accounts;
+            if (!accounts || accounts.length === 0) {
+                return REST.error(res, 'No GMB accounts found for the given token.', 404);
+            }
+            const searchTerms = searchQuery.toLowerCase().split(' ').filter(term => term.length > 0);
+            const filteredAccounts = accounts.filter(account => {
+                const accountName = account.accountName || account.name || '';
+                return searchTerms.some(term => accountName.toLowerCase().includes(term));
+            });			
+            return REST.success(res, {
+                accounts: filteredAccounts
+            }, 'GMB accounts found successfully.');
+        }
+    } catch (error) {
+        return handleGMBError(error, res);
+    }
+});
 module.exports = router;
