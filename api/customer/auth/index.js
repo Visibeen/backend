@@ -85,7 +85,7 @@ router.post('/signUp', async function (req, res) {
 		const user_uid = 'UID_' + support.generateRandomNumber();
 		const userPayload = {
 			full_name,
-			role_id: 3,
+			// role_id: 3,
 			email,
 			phone_number,
 			password: hashedPassword,
@@ -111,7 +111,7 @@ router.post('/login', async function (req, res) {
 				const user_uid = 'UID_' + support.generateRandomNumber();
 				const userPayload = {
 					full_name: data.full_name,
-					role_id: 3,
+					// role_id: 3,
 					email: data.email,
 					phone_number: data.phone_number,
 					user_uid: user_uid,

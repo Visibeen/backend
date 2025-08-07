@@ -38,20 +38,20 @@ verifyAuthenticate = async (req, res, next) => {
     }
 };
 
-const routeAuthentication = (roles) => async (req, res, next) => {
-    const cUser = req.body.current_user;
-    if (cUser) {
-        let user = await models.User.findOne({ where: { id: cUser.id } })
-        if (roles.indexOf(user.role_id) !== -1) {
-            next();
-        } else {
-            res.status(403).send({ message: "Invalid Token!" });
-        }
-    } else {
-        res.status(401).send({ message: "Unauthorized" });
-    }
-}
+// const routeAuthentication = (roles) => async (req, res, next) => {
+//     const cUser = req.body.current_user;
+//     if (cUser) {
+//         let user = await models.User.findOne({ where: { id: cUser.id } })
+//         if (roles.indexOf(user.role_id) !== -1) {
+//             next();
+//         } else {
+//             res.status(403).send({ message: "Invalid Token!" });
+//         }
+//     } else {
+//         res.status(401).send({ message: "Unauthorized" });
+//     }
+// }
 module.exports = {
     verifyAuthenticate,
-    routeAuthentication
+    // routeAuthentication
 };
