@@ -50,6 +50,7 @@ router.get("/get", async function (req, res) {
 });
 
 
+
 // Update user profile
 router.put("/update", async function (req, res) {
 	var user = req.body.current_user;
