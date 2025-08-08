@@ -13,31 +13,6 @@ const { compare } = require('../../../utils/hash');
 const auth = require('../../../utils/auth');
 const axios = require('axios');
 
-router.get('/getBusinessProfile', async function (req, res) {
-	try {
-		const { googleAccessToken } = req.query;
-		if (!googleAccessToken) {
-			return REST.error(res, 'Google access token is required.', 400);
-		}
-		const response = await axios.get('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
-			headers: {
-				'Authorization': `Bearer ${googleAccessToken}`,
-				'Content-Type': 'application/json',
-				
-			},
-		});		
-		if (response.data && response.data.accounts && response.data.accounts.length > 0) {
-			return REST.success(res, response.data.accounts, 'GMB profiles found.');
-		} else {
-			return REST.error(res, 'No GMB profiles found.', 404);
-		}
-	} catch (error) {
-		const status = error?.response?.status || 500;
-		const message = error?.response?.data?.error?.message || 'Failed to retrieve GMB accounts.';
-		return REST.error(res, message, status);
-	}
-});
-
 
 
 // Get user profile
@@ -132,38 +107,7 @@ async function getUser(user_id) {
 	return user;
 }
 
-router.get('/getBusinessProfile/:accountId', async function (req, res) {
-	try {
-		const { accountId } = req.params;
-		const { googleAccessToken } = req.query;
-
-		if (!googleAccessToken) {
-			return REST.error(res, 'Google access token is required.', 400);
-		}
-		if (!accountId) {
-			return REST.error(res, 'Account ID is required.', 400);
-		}
-
-		const response = await axios.get(
-			`https://mybusinessbusinessinformation.googleapis.com/v1/locations?parent=accounts/${accountId}`,
-			{
-				headers: {
-					'Authorization': `Bearer ${googleAccessToken}`,
-					'Content-Type': 'application/json',
-				},
-			}
-		);
-
-		if (response.data && response.data.locations?.length > 0) {
-			return REST.success(res, response.data.locations, 'Business locations found.');
-		}
-
-		return REST.error(res, 'No business locations found.', 404);
-	} catch (error) {
-		const status = error?.response?.status || 500;
-		const message = error?.response?.data?.error?.message || 'Failed to retrieve business profile.';
-		return REST.error(res, message, status);
-	}
-});
-
+//accounts/112694470912208112675
+// `https://mybusinessbusinessinformation.googleapis.com/v1/locations?parent=accounts/${accountId}`,
+//https://mybusinessaccountmanagement.googleapis.com/v1/accounts
 module.exports = router;
