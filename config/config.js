@@ -17,5 +17,5 @@ module.exports = {
     dialect: 'mysql',
     port: process.env.MYSQL_PORT
   },
-  USER_SECRET: "indilink",
+  USER_SECRET: "visibeen",
 };

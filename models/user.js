@@ -41,6 +41,21 @@ module.exports = (sequelize, DataTypes) => {
     token: {
       type: DataTypes.TEXT
     },
+    reset_password_token:{
+      type:DataTypes.TEXT
+    },
+    reset_password_expires:{
+      type:DataTypes.DATE
+    },
+    google_access_token:{
+      type:DataTypes.TEXT
+    },
+    has_gmb_access:{
+      type:DataTypes.BOOLEAN
+    },
+    last_login:{
+      type:DataTypes.DATE
+    },
     status: {
       allowNull: false,
       type: DataTypes.STRING,
@@ -54,6 +69,12 @@ module.exports = (sequelize, DataTypes) => {
     },
     logout_date: {
       type: DataTypes.DATE
+    },
+     reset_password_token: {
+      type: DataTypes.STRING
+    },
+    reset_password_expires: {
+      type: DataTypes.BIGINT
     },
  }, {
     sequelize,

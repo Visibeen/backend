@@ -41,9 +41,7 @@ router.post('/create_page', async function (req, res) {
 router.get('/getPage', async function (req, res) {
     try {
         const data = await models.admin_pages.findAll({
-            order: [["id", "ASC"]],
-            raw: true,
-            nest: true
+            order: [["id", "DESC"]],
         })
         return REST.success(res, data, 'Get All Pages Successfully');
     } catch (error) {
