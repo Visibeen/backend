@@ -187,7 +187,6 @@ router.post('/login', async function (req, res) {
 				user: finalUser,
 				hasGMBAccess: hasGMBAccess,
 				needsGoogleAuth: needsGoogleAuth,
-				// gmbAccounts: (gmbCheck && gmbCheck.accounts) || [],
 			}, 'Login successful.');
 		}
 	} catch (error) {
