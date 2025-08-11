@@ -14,6 +14,7 @@ const auth = require('../../../utils/auth');
 const axios = require('axios');
 const nodemailer = require('nodemailer')
 const bcrypt = require('bcrypt');
+const { log } = require('console');
 
 
 async function checkGMBAccess(googleAccessToken) {
@@ -187,7 +188,6 @@ router.post('/login', async function (req, res) {
 				user: finalUser,
 				hasGMBAccess: hasGMBAccess,
 				needsGoogleAuth: needsGoogleAuth,
-				// gmbAccounts: (gmbCheck && gmbCheck.accounts) || [],
 			}, 'Login successful.');
 		}
 	} catch (error) {
@@ -196,11 +196,7 @@ router.post('/login', async function (req, res) {
 });
 router.post('/google-login', async function (req, res) {
 	try {
-		const { email, googleAccessToken, authCode } = req.body;
-		if (!email) {
-			return REST.error(res, 'Email is required.', 400);
-		}
-
+		const { email, googleAccessToken, authCode, full_name } = req.body;
 		let accessToken = googleAccessToken;
 		if (!accessToken && authCode) {
 			try {
@@ -210,24 +206,21 @@ router.post('/google-login', async function (req, res) {
 				return REST.error(res, 'Failed to exchange auth code for access token.', 400);
 			}
 		}
-
 		if (!accessToken) {
 			return REST.error(res, 'Google access token is required.', 400);
 		}
-
 		const gmbCheck = await checkGMBAccess(accessToken);
 		let user = await models.User.findOne({ where: { email } });
 		if (!user) {
-			// Create new user
 			const user_uid = 'UID_' + support.generateRandomNumber();
 			const userPayload = {
-				full_name: req.body.full_name || email.split('@')[0], // Use email prefix if no name provided
+				full_name: full_name || email.split('@')[0],
 				role_id: 3,
-				email: email,
-				user_uid: user_uid,
+				email,
+				user_uid,
 				account_type: 'google',
 				status: constants.USER.STATUSES.ACTIVE,
-				google_access_token: accessToken, // Store the access token
+				google_access_token: accessToken,
 				has_gmb_access: gmbCheck.hasGMBAccess
 			};
 
@@ -235,7 +228,6 @@ router.post('/google-login', async function (req, res) {
 				return await models.User.create(userPayload, { transaction });
 			});
 		} else {
-			// Update existing user with new token and GMB status
 			await models.User.update({
 				google_access_token: accessToken,
 				has_gmb_access: gmbCheck.hasGMBAccess,
@@ -244,26 +236,20 @@ router.post('/google-login', async function (req, res) {
 
 			user = await models.User.findOne({ where: { id: user.id } });
 		}
-
-		// Generate JWT token
-		const token = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
+		const token = auth.longTermToken({ userid: user.id }, config.USER_SECRET);
 		await models.User.update({
 			token: token,
 			login_date: new Date()
 		}, { where: { id: user.id } });
 
 		const finalUser = await models.User.findOne({ where: { id: user.id } });
-
-		// Return response with GMB status for frontend routing
 		return REST.success(res, {
 			user: finalUser,
 			hasGMBAccess: gmbCheck.hasGMBAccess,
 			gmbAccounts: gmbCheck.accounts || [],
-			redirectTo: gmbCheck.hasGMBAccess ? '/dashboard' : '/account-not-found'
 		}, 'Login successful.');
 
 	} catch (error) {
-		console.error('Google login error:', error);
 		return REST.error(res, error.message, 500);
 	}
 });
@@ -386,62 +372,5 @@ router.post('/update_Password', async function (req, res) {
 	} catch (error) {
 		return REST.error(res, error.message, 500);
 	}
-});
-// GMB Profile Search
-const GMB_CONFIG = {
-    baseURL: 'https://mybusinessbusinessinformation.googleapis.com/v1',
-    readMask: 'name'
-};
-const getHeaders = (token) => ({
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
-});
-const handleGMBError = (error, res) => {
-    console.error('GMB API Error:', error.response?.data || error.message);
-    
-    const status = error.response?.status;
-    switch (status) {
-        case 401:
-            return REST.error(res, 'Invalid or expired Google access token', 401);
-        case 403:
-            return REST.error(res, 'Insufficient permissions to access GMB API', 403);
-        case 404:
-            return REST.error(res, 'Resource not found', 404);
-        case 429:
-            return REST.error(res, 'Rate limit exceeded for GMB API', 429);
-        default:
-            return REST.error(res, `GMB API Error: ${error.message}`, 500);
-    }
-};
-router.post('/search_gmb_profile', async function (req, res) {
-    try {
-        const { googleAccessToken, searchQuery } = req.body;
-        if (!googleAccessToken) {
-            return REST.error(res, 'Google access token is required', 400);
-        }
-        if (!searchQuery) {
-            return REST.error(res, 'Search query is required', 400);
-        }
-        const isAlphabetOnly = /^[a-zA-Z\s]+$/.test(searchQuery.trim());
-        if (isAlphabetOnly) {
-            const accountsResponse = await axios.get(`${GMB_CONFIG.baseURL}/accounts`, {
-                headers: getHeaders(googleAccessToken)
-            });
-            const accounts = accountsResponse.data?.accounts;
-            if (!accounts || accounts.length === 0) {
-                return REST.error(res, 'No GMB accounts found for the given token.', 404);
-            }
-            const searchTerms = searchQuery.toLowerCase().split(' ').filter(term => term.length > 0);
-            const filteredAccounts = accounts.filter(account => {
-                const accountName = account.accountName || account.name || '';
-                return searchTerms.some(term => accountName.toLowerCase().includes(term));
-            });			
-            return REST.success(res, {
-                accounts: filteredAccounts
-            }, 'GMB accounts found successfully.');
-        }
-    } catch (error) {
-        return handleGMBError(error, res);
-    }
 });
 module.exports = router;
