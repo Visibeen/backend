@@ -242,7 +242,7 @@ router.post('/google-login', async function (req, res) {
 			user = await models.User.findOne({ where: { id: user.id } });
 		}
 
-		const token = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
+		const token = auth.longTermToken({ userid: user.id }, config.USER_SECRET);
 		await models.User.update({
 			token: token,
 			login_date: new Date()

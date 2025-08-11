@@ -107,7 +107,5 @@ async function getUser(user_id) {
 	return user;
 }
 
-//accounts/112694470912208112675
-// `https://mybusinessbusinessinformation.googleapis.com/v1/locations?parent=accounts/${accountId}`,
-//https://mybusinessaccountmanagement.googleapis.com/v1/accounts
+
 module.exports = router;
