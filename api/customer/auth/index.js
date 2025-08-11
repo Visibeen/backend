@@ -14,6 +14,7 @@ const auth = require('../../../utils/auth');
 const axios = require('axios');
 const nodemailer = require('nodemailer')
 const bcrypt = require('bcrypt');
+const { log } = require('console');
 
 
 async function checkGMBAccess(googleAccessToken) {
@@ -195,11 +196,7 @@ router.post('/login', async function (req, res) {
 });
 router.post('/google-login', async function (req, res) {
 	try {
-		const { email, googleAccessToken, authCode } = req.body;
-		if (!email) {
-			return REST.error(res, 'Email is required.', 400);
-		}
-
+		const { email, googleAccessToken, authCode, full_name } = req.body;
 		let accessToken = googleAccessToken;
 		if (!accessToken && authCode) {
 			try {
@@ -209,23 +206,21 @@ router.post('/google-login', async function (req, res) {
 				return REST.error(res, 'Failed to exchange auth code for access token.', 400);
 			}
 		}
-
 		if (!accessToken) {
 			return REST.error(res, 'Google access token is required.', 400);
 		}
-
 		const gmbCheck = await checkGMBAccess(accessToken);
 		let user = await models.User.findOne({ where: { email } });
 		if (!user) {
 			const user_uid = 'UID_' + support.generateRandomNumber();
 			const userPayload = {
-				full_name: req.body.full_name || email.split('@')[0],
+				full_name: full_name || email.split('@')[0],
 				role_id: 3,
-				email: email,
-				user_uid: user_uid,
+				email,
+				user_uid,
 				account_type: 'google',
 				status: constants.USER.STATUSES.ACTIVE,
-				google_access_token: accessToken, 
+				google_access_token: accessToken,
 				has_gmb_access: gmbCheck.hasGMBAccess
 			};
 
@@ -241,7 +236,6 @@ router.post('/google-login', async function (req, res) {
 
 			user = await models.User.findOne({ where: { id: user.id } });
 		}
-
 		const token = auth.longTermToken({ userid: user.id }, config.USER_SECRET);
 		await models.User.update({
 			token: token,
@@ -256,7 +250,6 @@ router.post('/google-login', async function (req, res) {
 		}, 'Login successful.');
 
 	} catch (error) {
-		console.error('Google login error:', error);
 		return REST.error(res, error.message, 500);
 	}
 });
