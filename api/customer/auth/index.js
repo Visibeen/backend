@@ -215,7 +215,6 @@ router.post('/google-login', async function (req, res) {
 			const user_uid = 'UID_' + support.generateRandomNumber();
 			const userPayload = {
 				full_name: full_name || email.split('@')[0],
-				role_id: 3,
 				email,
 				user_uid,
 				account_type: 'google',
