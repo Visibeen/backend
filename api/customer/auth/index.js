@@ -86,6 +86,7 @@ router.post('/signUp', async function (req, res) {
 		const user_uid = 'UID_' + support.generateRandomNumber();
 		const userPayload = {
 			full_name,
+			role: 3,
 			email,
 			phone_number,
 			password: hashedPassword,
@@ -217,6 +218,7 @@ router.post('/google-login', async function (req, res) {
 				full_name: full_name || email.split('@')[0],
 				email,
 				user_uid,
+				role: 3,
 				account_type: 'google',
 				status: constants.USER.STATUSES.ACTIVE,
 				google_access_token: accessToken,
