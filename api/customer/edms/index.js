@@ -118,17 +118,16 @@ router.put("/update-edms/:id", async function (req, res) {
 router.delete("/delete-edms/:id", async function (req, res) {
     const cUser = req.body.current_user;
     try {
-        const edms = await models.edms.findOne({
+        const data = await models.edms.findOne({
             where: { id: req.params.id }
         });
-        if (!edms) {
+        if (!data) {
             return REST.error(res, 'EDMS not found.', 404);
         }
-        await models.sequelize.transaction(async (transaction) => {
-            await edms.destroy({ transaction });
-            return true;
+        const deletedEdms = await models.edms.destroy({
+            where: { id: req.params.id }
         });
-        return REST.success(res, null, 'EDMS deleted successfully');
+        return REST.success(res, deletedEdms, 'EDMS deleted successfully');
     } catch (error) {
         return REST.error(res, error.message, 500);
     }

@@ -50,6 +50,10 @@ app.group('/api', (router) => {
 			groupRouter.use('/account', require('./api/customer/business_account/index'));
 			groupRouter.use('/contact-us', require('./api/customer/contact_us/index'));
 			groupRouter.use('/edms', require('./api/customer/edms/index')); 
+			groupRouter.use('/post', require('./api/customer/post/index'));
+			groupRouter.use('/accounts', require('./api/customer/account/index'));
+			groupRouter.use('/gst-information', require('./api/customer/gst_information/index'));
+			groupRouter.use('/cro-information', require('./api/customer/cro_information/index'));
 		});
 	});
 });
