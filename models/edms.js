@@ -14,35 +14,35 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       type: DataTypes.INTEGER
     },
-    user_id:{
+    user_id: {
       type: DataTypes.BIGINT
     },
-    name:{
+    name: {
       type: DataTypes.STRING
     },
-    business_name:{
+    business_name: {
       type: DataTypes.STRING
     },
-    address:{
+    address: {
       type: DataTypes.STRING
     },
-    email:{
+    email: {
       type: DataTypes.STRING
     },
-    contact_number:{
+    contact_number: {
       type: DataTypes.STRING
     },
-    alternative_contact_number:{
+    alternative_contact_number: {
       type: DataTypes.STRING
     },
-    website:{
+    website: {
       type: DataTypes.TEXT
     },
-    status:{
+    status: {
       type: DataTypes.BOOLEAN,
       defaultValue: false
     },
-    image:{
+    image: {
       type: DataTypes.TEXT
     }
   }, {
@@ -51,8 +51,8 @@ module.exports = (sequelize, DataTypes) => {
     tableName: 'edms',
     underscored: true,
     timestamps: true,
-    paranoid:false,
-    freezeTableName:true
+    paranoid: false,
+    freezeTableName: true
   });
   return edms;
 };

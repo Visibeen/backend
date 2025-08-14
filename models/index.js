@@ -22,14 +22,14 @@ User.hasMany(edms, { foreignKey: 'user_id', as: 'edms' });
 post.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails' })
 User.hasMany(post, { foreignKey: 'user_id', as: 'post' });
 // USER AND ACCOUNT RELATIONSHIP
-account.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails'})
+account.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails' })
 User.hasMany(account, { foreignKey: 'user_id', as: 'account' });
 // USER AND GST INFORMATION RELATIONSHIP
-gst_information.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails'})
-User.hasMany(gst_information, { foreignKey: 'user_id', as: 'gst_information' }); 
+gst_information.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails' })
+User.hasMany(gst_information, { foreignKey: 'user_id', as: 'gst_information' });
 // USER AND CRO INFORMATION RELATIONSHIP
-cro_information.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails'})
-User.hasMany(cro_information, { foreignKey: 'user_id', as: 'cro_information' }); 
+cro_information.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails' })
+User.hasMany(cro_information, { foreignKey: 'user_id', as: 'cro_information' });
 
 module.exports = db;
 db.User = User;
@@ -54,6 +54,7 @@ db.Sequelize = Sequelize;
 
 db.resetAllTable = async () => {
   await db.User.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.edms.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
 };
 
 module.exports = db;
