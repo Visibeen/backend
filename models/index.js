@@ -11,6 +11,7 @@ const post = require('./post.js')(sequelize, Sequelize.DataTypes);
 const account = require('./account.js')(sequelize, Sequelize.DataTypes);
 const gst_information = require('./gst_information.js')(sequelize, Sequelize.DataTypes);
 const cro_information = require('./cro_information.js')(sequelize, Sequelize.DataTypes);
+const holiday = require('./holiday.js')(sequelize, Sequelize.DataTypes);
 
 // user and bussiness account relationship
 business_account.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails' })
@@ -30,6 +31,15 @@ User.hasMany(gst_information, { foreignKey: 'user_id', as: 'gst_information' });
 // USER AND CRO INFORMATION RELATIONSHIP
 cro_information.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails' })
 User.hasMany(cro_information, { foreignKey: 'user_id', as: 'cro_information' });
+// USER AND HOLIDAY RELATIONSHIP
+holiday.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails' })
+User.hasMany(holiday, { foreignKey: 'user_id', as: 'holiday' });
+// USER AND CREATED BY RELATIONSHIP
+holiday.belongsTo(User, { foreignKey: 'created_by', as: 'createdBy' })
+User.hasMany(holiday, { foreignKey: 'created_by', as: 'createdHolidays' });
+// USER AND UPDATED BY RELATIONSHIP 
+holiday.belongsTo(User, { foreignKey: 'updated_by', as: 'updatedBy' })
+User.hasMany(holiday, { foreignKey: 'updated_by', as: 'updatedHolidays' });
 
 module.exports = db;
 db.User = User;
@@ -40,7 +50,8 @@ db.edms = edms;
 db.post = post;
 db.account = account;
 db.gst_information = gst_information;
-db.cro_information = cro_information
+db.cro_information = cro_information;
+db.holiday = holiday;
 
 
 Object.keys(db).forEach(modelName => {
