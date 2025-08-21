@@ -15,8 +15,8 @@ const { make } = require('simple-body-validator');
 
 // create holiday
 router.post("/create-holiday", async function (req, res) {
-    const cUser = req.body.current_user;
-    try {
+    const cUser = req.body.current_user;    
+    try {        
         const rules = {
             name: 'required|string',
             date: 'required|string',
@@ -41,8 +41,7 @@ router.post("/create-holiday", async function (req, res) {
                 name: req.body.name,
                 date: req.body.date,
                 template: req.body.template,
-                // created_by: cUser.id,
-                // updated_by: cUser.id,
+                created_by: cUser.id,
                 image: req.body.image || null
             }, { transaction });
             return data;

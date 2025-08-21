@@ -30,7 +30,8 @@ app.use(express.json())
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(fileUpload({ createParentPath: true, limits: { fileSize: config.limit_file_size } }));
 
-const middleware = require("./utils/middleware");
+const middleware = require("./utils/middleware")
+
 app.get('/health', (req, res) => {
 	res.status(200).send('OK');
 });
@@ -45,12 +46,12 @@ app.group('/api', (router) => {
 		groupV1.use('/errors', require("./api/errors"));
 		groupV1.group('/customer', (groupRouter) => {
 			groupRouter.use('/auth', require('./api/customer/auth/index'));
-			// groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([3])]);      
+			// groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([3])]);
 			groupRouter.use('/profile', require('./api/customer/profile/index'));
 			groupRouter.use('/account', require('./api/customer/business_account/index'));
-			groupRouter.use('/contact-us', require('./api/customer/contact_us/index'));
-			groupRouter.use('/edms', require('./api/customer/edms/index')); 
-			groupRouter.use('/post', require('./api/customer/post/index'));
+			groupRouter.use('/contact-us', require('./api/customer/contact_us/index'))
+			groupRouter.use('/edms', require('./api/customer/edms/index'))
+			groupRouter.use('/post', require('./api/customer/post/index'))
 			groupRouter.use('/accounts', require('./api/customer/account/index'));
 			groupRouter.use('/gst-information', require('./api/customer/gst_information/index'));
 			groupRouter.use('/cro-information', require('./api/customer/cro_information/index'));
