@@ -143,97 +143,116 @@ router.get('/getGmbMedia/:locationId', async function (req, res) {
 		return REST.error(res, error.message, error.response?.status || 500);
 	}
 });
-// Get user profile
-router.get("/get", async function (req, res) {
+router.get('/getLastFeed/:locationId', async function (req, res) {
 	try {
-		const user = await getUser(req.body.current_user.id);
-		return REST.success(res, user, 'Get profile success.');
-	} catch (error) {
-		return REST.error(res, error.message, 500);
-	}
-});
-
-
-
-// Update user profile
-router.put("/update", async function (req, res) {
-	var user = req.body.current_user;
-	try {
-		const data = req.body;
-		const rules = {
-			full_name: 'required',
-			phone_number: 'required'
-		};
-		const validator = make(data, rules);
-		if (!validator.validate()) {
-			return REST.error(res, validator.errors().first(), 422);
+		const { googleAccessToken } = req.query;
+		const { locationId } = req.params;
+		if (!googleAccessToken || typeof googleAccessToken !== 'string' || !googleAccessToken.trim()) {
+			return REST.error(res, 'Google access token is required.', 400);
 		}
-		const userDuplicatePhoneNumber = await models.User.findOne({ where: { phone_number: data.phone_number, id: { [Op.not]: user.id } } });
-		if (userDuplicatePhoneNumber) {
-			return REST.error(res, 'Phone number has been already taken.', 422);
+		if (!locationId) {
+			return REST.error(res, 'Location ID is required.', 400);
 		}
-
-		await models.sequelize.transaction(async (transaction) => {
-			await models.User.update(
-				{
-					full_name: data.full_name,
-					phone_number: data.phone_number
-				}, {
-				where: { id: user.id },
-				transaction: transaction
-			});
-			return true;
+		const token = googleAccessToken.trim();
+		console.log('Using access token:', JSON.stringify(token));
+		const url = `https://mybusiness.googleapis.com/v4/${encodeURIComponent(locationId)}/localPosts`;
+		const response = await axios.get(url, {
+			headers: {
+				'Authorization': `Bearer ${token}`,
+				'Content-Type': 'application/json',
+			},
+			params: {
+				pageSize: 100,
+			},
 		});
-
-		user = await getUser(user.id);
-		return REST.success(res, user, 'Update profile success.');
-	} catch (error) {
-		return REST.error(res, "Update profile failed, please try again.", 500);
-	}
-});
-
-
-//Change password
-router.put('/change_password', async function (req, res) {
-	try {
-		const data = req.body;
-		const rules = {
-			oldPassword: "required",
-			newPassword: "required",
-			confirmPassword: "required|same:newPassword",
-		};
-		const validator = make(data, rules);
-		if (!validator.validate()) {
-			return REST.error(res, validator.errors().all(), 422);
-		}
-		const cUser = req.body.current_user
-		const findUser = await models.User.findOne({ where: { id: cUser.id } });
-		if (findUser) {
-			const passwordMatch = await compare(data.oldPassword, findUser.password);
-			if (passwordMatch) {
-				const hashedNewPassword = await gen(data.newPassword);
-				await models.User.update(
-					{ password: hashedNewPassword },
-					{ where: { id: cUser.id } }
-				);
-				return REST.success(res, 'Password changed successfully');
-			} else {
-				return REST.error(res, 'Old password is incorrect', 422);
-			}
+		const posts = response.data?.localPosts;
+		if (Array.isArray(posts) && posts.length > 0) {
+			return REST.success(res, posts, 'GMB posts found.');
 		} else {
-			return REST.error(res, 'User not found', 404);
+			return REST.error(res, 'No GMB posts found.', 404);
 		}
 	} catch (error) {
-		return REST.error(res, error.message, 500);
+		return REST.error(res, error.message, error.response?.status || 500);
+	}
+});	
+router.get('/getGmbInsights/:locationId', async function (req, res) {
+	try {
+		const { googleAccessToken } = req.query;
+		const { locationId } = req.params;
+		if (!googleAccessToken || typeof googleAccessToken !== 'string' || !googleAccessToken.trim()) {
+			return REST.error(res, 'Google access token is required.', 400);
+		}
+		if (!locationId) {
+			return REST.error(res, 'Location ID is required.', 400);
+		}
+		const token = googleAccessToken.trim();
+		console.log('Using access token:', JSON.stringify(token));
+		const url = `https://mybusiness.googleapis.com/v4/${encodeURIComponent(locationId)}/insights`;
+		const response = await axios.get(url, {
+			headers: {
+				'Authorization': `Bearer ${token}`,
+				'Content-Type': 'application/json',
+			},
+			params: {
+				pageSize: 100,
+			},
+		});
+		const insights = response.data?.insights;
+		if (Array.isArray(insights) && insights.length > 0) {
+			return REST.success(res, insights, 'GMB insights found.');
+		} else {
+			return REST.error(res, 'No GMB insights found.', 404);
+		}
+	} catch (error) {
+		return REST.error(res, error.message, error.response?.status || 500);
 	}
 });
+router.post('/search-gmb-profile', async function (req, res) {
+  try {
+    const { googleAccessToken, query } = req.body;
 
-async function getUser(user_id) {
-	const user = await models.User.findOne({
-		where: { id: user_id }
-	});
-	return user;
-}
+    if (!googleAccessToken || typeof googleAccessToken !== 'string' || !googleAccessToken.trim()) {
+      return REST.error(res, 'Google access token is required.', 400);
+    }
+    if (!query || typeof query !== 'string' || !query.trim()) {
+      return REST.error(res, 'Search query is required.', 400);
+    }
+    const token = googleAccessToken.trim();
+    const textQuery = query.trim();
 
+    const fieldMask = [
+      'places.displayName',
+      'places.formattedAddress',
+      'places.websiteUri',
+      'places.types',
+      'places.phoneNumbers',
+      'places.latlng'
+    ].join(',');
+
+    const response = await axios.post(
+      'https://places.googleapis.com/v1/places:searchText',
+      {
+        textQuery: textQuery,
+        pageSize: 20
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-FieldMask': fieldMask,
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    const places = response.data?.places;
+    if (Array.isArray(places) && places.length > 0) {
+      return REST.success(res, places, 'Places found.');
+    } else {
+      return REST.error(res, 'No places found.', 404);
+    }
+  } catch (error) {
+    console.error('Places search error:', error.response?.data || error.message);
+    return REST.error(res, error.message, error.response?.status || 500);
+  }
+});
 
 module.exports = router;
