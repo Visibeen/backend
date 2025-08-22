@@ -45,7 +45,7 @@ module.exports = (sequelize, DataTypes) => {
       type:DataTypes.TEXT
     },
     reset_password_expires:{
-      type:DataTypes.DATE
+      type:DataTypes.BIGINT
     },
     google_access_token:{
       type:DataTypes.TEXT
