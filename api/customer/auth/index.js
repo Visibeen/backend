@@ -374,4 +374,5 @@ router.post('/update_Password', async function (req, res) {
 		return REST.error(res, error.message, 500);
 	}
 });
+
 module.exports = router;

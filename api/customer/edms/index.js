@@ -37,7 +37,7 @@ router.post("/create-edms", async function (req, res) {
 
         let edms = await models.sequelize.transaction(async (transaction) => {
             let data = await models.edms.create({
-                user_id: req.body.user_id ,
+                user_id: cUser.id,
                 name:  req.body.name,
                 business_name:  req.body.business_name,
                 address:  req.body.address,

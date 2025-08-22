@@ -66,6 +66,14 @@ db.Sequelize = Sequelize;
 db.resetAllTable = async () => {
   await db.User.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
   await db.edms.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.post.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.account.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.gst_information.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.cro_information.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.holiday.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.business_account.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.contact_us.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.user_role.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
 };
 
 module.exports = db;

@@ -30,7 +30,7 @@ router.post("/create-post", async function (req, res) {
         }
         const findUser = await models.User.findOne({
             where: {
-                id: req.body.user_id,
+                id: cUser.id,
             }
         });
         if (!findUser) {
@@ -38,7 +38,7 @@ router.post("/create-post", async function (req, res) {
         }
         let post = await models.sequelize.transaction(async (transaction) => {
             let data = await models.post.create({
-                user_id: req.body.user_id,
+                user_id: cUser.id,
                 name: req.body.name,
                 testimonial_text: req.body.testimonial_text,
                 image: req.body.image,
