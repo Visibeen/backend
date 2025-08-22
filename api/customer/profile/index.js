@@ -20,9 +20,10 @@ router.get('/getBusinessProfile', async function (req, res) {
 		if (!googleAccessToken) {
 			return REST.error(res, 'Google access token is required.', 400);
 		}
+		const token = googleAccessToken.trim();
 		const response = await axios.get('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
 			headers: {
-				'Authorization': `Bearer ${googleAccessToken}`,
+				'Authorization': `Bearer ${token}`,
 				'Content-Type': 'application/json',
 			},
 		});		
