@@ -38,7 +38,7 @@ router.post("/create-account", async function (req, res) {
         }
         let account = await models.sequelize.transaction(async (transaction) => {
             let data = await models.account.create({
-                user_id: req.body.user_id,
+                user_id:cUser.id,
                 business_name: req.body.business_name,
                 industry_type: req.body.industry_type,
                 start_date: req.body.start_date ? moment(req.body.start_date).toDate() : null,

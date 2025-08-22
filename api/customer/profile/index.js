@@ -20,14 +20,14 @@ router.get('/getBusinessProfile', async function (req, res) {
 		if (!googleAccessToken) {
 			return REST.error(res, 'Google access token is required.', 400);
 		}
-		
-		const response = await axios.get('https://mybusinessaccountmanagement.googleapis.com/v4/accounts', {
+		const response = await axios.get('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
 			headers: {
 				'Authorization': `Bearer ${googleAccessToken}`,
 				'Content-Type': 'application/json',
 			},
 		});
-		if (response.data && response.data.accounts && response.data.accounts.length > 0) {
+
+		if (response.data?.accounts && response.data?.accounts?.length > 0) {
 			return REST.success(res, response.data.accounts, 'GMB profiles found.');
 		} else {
 			return REST.error(res, 'No GMB profiles found.', 404);
@@ -36,8 +36,113 @@ router.get('/getBusinessProfile', async function (req, res) {
 		return REST.error(res, error.message, 500);
 	}
 });
+router.get('/getGmbProfile/:accountId', async function (req, res) {
+	try {
+		const { googleAccessToken } = req.query;
+		const { accountId } = req.params;
+		if (!googleAccessToken || typeof googleAccessToken !== 'string' || !googleAccessToken.trim()) {
+			return REST.error(res, 'Google access token is required.', 400);
+		}
+		if (!accountId) {
+			return REST.error(res, 'Account ID is required.', 400);
+		}
 
+		const token = googleAccessToken.trim();
+		console.log('Using access token:', JSON.stringify(token));
+		const fields = [
+			'storeCode', 'regularHours', 'name', 'languageCode', 'title',
+			'phoneNumbers', 'categories', 'storefrontAddress', 'websiteUri',
+			'specialHours', 'serviceArea', 'labels', 'adWordsLocationExtensions',
+			'latlng', 'openInfo', 'metadata', 'profile', 'relationshipData', 'moreHours'
+		].join(',');
+		const url = `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/${encodeURIComponent(accountId)}/locations`;
+		const response = await axios.get(url, {
+			headers: {
+				'Authorization': `Bearer ${token}`,
+				'Content-Type': 'application/json',
+			},
+			params: {
+				readMask: fields,
+				pageSize: 100,
+			},
+		});
+		const locations = response.data?.locations;
+		if (Array.isArray(locations) && locations.length > 0) {
+			return REST.success(res, locations, 'GMB locations found.');
+		} else {
+			return REST.error(res, 'No GMB locations found.', 404);
+		}
+	} catch (error) {
+		return REST.error(res, error.message, error.response?.status || 500);
+	}
+});
+router.get('/getGmbratings/:locationId', async function (req, res) {
+	try {
+		const { googleAccessToken } = req.query;
+		const { locationId } = req.params;
+		if (!googleAccessToken || typeof googleAccessToken !== 'string' || !googleAccessToken.trim()) {
+			return REST.error(res, 'Google access token is required.', 400);
+		}
+		if (!locationId) {
+			return REST.error(res, 'Location ID is required.', 400);
+		}
 
+		const token = googleAccessToken.trim();
+		console.log('Using access token:', JSON.stringify(token));
+		const url = `https://mybusiness.googleapis.com/v4/${encodeURIComponent(locationId)}/reviews`;
+		const response = await axios.get(url, {
+			headers: {
+				'Authorization': `Bearer ${token}`,
+				'Content-Type': 'application/json',
+			},
+			params: {
+				pageSize: 100,
+			},
+		});
+		const reviews = response.data?.reviews;
+		if (Array.isArray(reviews) && reviews.length > 0) {
+			return REST.success(res, reviews, 'GMB reviews found.');
+		} else {
+			return REST.error(res, 'No GMB reviews found.', 404);
+		}
+	} catch (error) {
+		return REST.error(res, error.message, error.response?.status || 500);
+	}
+});
+router.get('/getGmbMedia/:locationId', async function (req, res) {
+	try {
+		const { googleAccessToken } = req.query;
+		const { locationId } = req.params;
+		if (!googleAccessToken || typeof googleAccessToken !== 'string' || !googleAccessToken.trim()) {
+			return REST.error(res, 'Google access token is required.', 400);
+		}
+		if (!locationId) {
+			return REST.error(res, 'Location ID is required.', 400);
+		}
+		const token = googleAccessToken.trim();
+		console.log('Using access token:', JSON.stringify(token));
+		const url = `https://mybusiness.googleapis.com/v4/${encodeURIComponent(locationId)}/media`;
+		const response = await axios.get(url, {
+			headers: {
+				'Authorization': `Bearer ${token}`,
+				'Content-Type': 'application/json',
+			},
+			params: {
+				pageSize: 100,
+			},
+		});
+		const mediaItems = response.data?.mediaItems;
+		if (Array.isArray(mediaItems) && mediaItems.length > 0) {
+
+			return REST.success(res, mediaItems, 'GMB media items found.');
+		}
+		else {
+			return REST.error(res, 'No GMB media items found.', 404);
+		}
+	} catch (error) {
+		return REST.error(res, error.message, error.response?.status || 500);
+	}
+});
 // Get user profile
 router.get("/get", async function (req, res) {
 	try {

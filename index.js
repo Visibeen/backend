@@ -46,7 +46,7 @@ app.group('/api', (router) => {
 		groupV1.use('/errors', require("./api/errors"));
 		groupV1.group('/customer', (groupRouter) => {
 			groupRouter.use('/auth', require('./api/customer/auth/index'));
-			// groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([3])]);
+			groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([3,1])]);
 			groupRouter.use('/profile', require('./api/customer/profile/index'));
 			groupRouter.use('/account', require('./api/customer/business_account/index'));
 			groupRouter.use('/contact-us', require('./api/customer/contact_us/index'))

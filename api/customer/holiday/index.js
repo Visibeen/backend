@@ -28,7 +28,7 @@ router.post("/create-holiday", async function (req, res) {
         }
         const findUser = await models.User.findOne({
             where: {
-                id: req.body.user_id,
+                id:cUser.id,
             }
         });
         if (!findUser) {
@@ -37,7 +37,7 @@ router.post("/create-holiday", async function (req, res) {
         
         let holiday = await models.sequelize.transaction(async (transaction) => {
             let data = await models.holiday.create({
-                user_id: req.body.user_id,
+                user_id: cUser.id,
                 name: req.body.name,
                 date: req.body.date,
                 template: req.body.template,
@@ -57,7 +57,7 @@ router.get("/get-all-holidays", async function (req, res) {
     const cUser = req.body.current_user;
     try {
         const holidays = await models.holiday.findAll({
-            // where: { user_id: cUser.id },
+            where: { user_id: cUser.id },
             attributes: ['id', 'user_id', 'name', 'date', 'template', 'status', 'created_by', 'updated_by', 'image', 'createdAt', 'updatedAt'],
             order: [['date', 'DESC']],
             include: [

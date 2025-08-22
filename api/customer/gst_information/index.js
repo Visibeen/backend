@@ -32,7 +32,7 @@ router.post("/create-gst-information", async function (req, res) {
         }
         const findUser = await models.User.findOne({
             where: {
-                id: req.body.user_id,
+                id: cUser.id,
             }
         });
         if (!findUser) {
@@ -40,7 +40,7 @@ router.post("/create-gst-information", async function (req, res) {
         }
         let gstInformation = await models.sequelize.transaction(async (transaction) => {
             let data = await models.gst_information.create({
-                user_id: req.body.user_id,
+                user_id: cUser.id,
                 gst_details: req.body.gst_details,
                 payment_details: req.body.payment_details,
                 bank_name: req.body.bank_name,

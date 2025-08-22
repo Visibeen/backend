@@ -25,7 +25,7 @@ router.post('/create-business', async function (req, res) {
         }
         const business = await models.sequelize.transaction(async (transaction) => {
             const data = await models.business_account.create({
-                user_id: req.body.user_id,
+                user_id: cUser.id,
                 business_name: req.body.business_name,
                 business_category: req.body.business_category,
                 is_location: req.body.is_location,

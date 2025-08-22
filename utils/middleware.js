@@ -41,7 +41,7 @@ verifyAuthenticate = async (req, res, next) => {
 const routeAuthentication = (roles) => async (req, res, next) => {
     const cUser = req.body.current_user;
     if (cUser) {
-        let user = await models.User.findOne({ where: { id: cUser.id } })
+        let user = await models.User.findOne({ where: { id: cUser.id } })        
         if (roles.indexOf(user.role_id) !== -1) {
             next();
         } else {

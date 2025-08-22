@@ -41,7 +41,7 @@ router.post("/create-cro-information", async function (req, res) {
         }
         const findUser = await models.User.findOne({
             where: {
-                id: req.body.user_id,
+                id: cUser.id,
             }
         });
         if (!findUser) {
@@ -49,7 +49,7 @@ router.post("/create-cro-information", async function (req, res) {
         }
         let croInformation = await models.sequelize.transaction(async (transaction) => {
             let data = await models.cro_information.create({
-                user_id: req.body.user_id,
+                user_id: cUser.id,
                 cro_employee_name: req.body.cro_employee_name,
                 seo_employee_name: req.body.seo_employee_name,
                 cro_category: req.body.cro_category,
