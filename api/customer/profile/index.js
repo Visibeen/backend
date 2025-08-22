@@ -14,19 +14,19 @@ const auth = require('../../../utils/auth');
 const axios = require('axios');
 
 
-router.get('/getBusinessProfile', async function (req, res) {
+router.get('/getBusinessProfile', async function (req, res) {	
 	try {
 		const { googleAccessToken } = req.query;
 		if (!googleAccessToken) {
 			return REST.error(res, 'Google access token is required.', 400);
 		}
+		const token = googleAccessToken.trim();
 		const response = await axios.get('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
 			headers: {
-				'Authorization': `Bearer ${googleAccessToken}`,
+				'Authorization': `Bearer ${token}`,
 				'Content-Type': 'application/json',
 			},
-		});
-
+		});		
 		if (response.data?.accounts && response.data?.accounts?.length > 0) {
 			return REST.success(res, response.data.accounts, 'GMB profiles found.');
 		} else {
