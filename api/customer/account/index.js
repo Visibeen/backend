@@ -28,14 +28,6 @@ router.post("/create-account", async function (req, res) {
         if (!validator.validate()) {
             return REST.error(res, validator.errors().first(), 422);
         }
-        const findUser = await models.User.findOne({
-            where: {
-                id: req.body.user_id,
-            }
-        });
-        if (!findUser) {
-            return REST.error(res, 'User not found', 404);
-        }
         let account = await models.sequelize.transaction(async (transaction) => {
             let data = await models.account.create({
                 user_id:cUser.id,
