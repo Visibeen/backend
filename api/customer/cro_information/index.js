@@ -36,8 +36,6 @@ router.post("/create-cro-information", async function (req, res) {
             client_status: 'required|string',
             email: 'required|email',
             password: 'required|string',
-            recory_email: 'required|email',
-            recory_password: 'required|string',
             google_account: 'string',
             location: 'string',
         };
