@@ -30,40 +30,34 @@ function removeCountryCode(phoneNumber) {
 //         }
 //     }
 // };
-const sendMail = async (otp) => {
+
+const sendMail = async (toEmail, message) => {
     try {
-        let email = "tech.support@indilink.in"
-        const data = {
-            host: "smtp.zoho.in",
+        const transporter = nodemailer.createTransport({
+            host: "smtp.gmail.com",
             port: 587,
-            SMTPAuth: true,
-            SLL: true,
             secure: false,
             auth: {
-                user: `${email}`,
-                pass: "Ghw3Sbgci6Em"
-            }
-        }
-        var transporter = nodemailer.createTransport(data);
+                user: "e2ebackupchd@gmail.com",
+                pass: "cqaf mtpy lloo wdpp", 
+            },
+        });
+
         const mailOptions = {
-            from: `Indilink <${email}>`,
-            to: otp.email,
-            subject: "Your Verification OTP",
-            text: `Your OTP is: ${otp.otp}`
+            from: `"E2E Report" <e2ebackupchd@gmail.com>`,
+            to: toEmail,
+            subject: "Thank You for Contacting Us",
+            text: message,
         };
-        transporter.sendMail(mailOptions, function (error, info) {
-            if (error) {
-                console.log(error);
-                return false
-            } else {
-                console.log("Email sent: " + info.response);
-                return true
-            }
-        })
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log("Email sent:", info.response);
+        return true;
     } catch (error) {
-        throw error;
+        console.error("Error sending email:", error);
+        return false;
     }
-}
+};
 const sendOtp = async (otp, toNumber) => {
     try {
         toNumber = removeCountryCode(toNumber);
