@@ -48,6 +48,7 @@ router.post("/create-gst-information", async function (req, res) {
                 gst_details: req.body.gst_details,
                 payment_details: req.body.payment_details,
                 bank_name: req.body.bank_name,
+                cheque_number:req.body.cheque_number,
                 payment_with_gst: req.body.payment_with_gst,
                 net_payment: req.body.net_payment,
                 gst: req.body.gst,
