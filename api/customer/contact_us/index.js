@@ -11,6 +11,7 @@ const support = require('../../../utils/support');
 var REST = require("../../../utils/REST");
 const { compare } = require('../../../utils/hash');
 const auth = require('../../../utils/auth');
+const { sendMail } = require('../../../utils/helper')
 
 
 /*
@@ -45,11 +46,14 @@ router.post('/create-contact', async function (req, res) {
             lat: data.lat,
             long: data.long,
         }, { transaction });
-        await transaction.commit()
+
+        await transaction.commit();
+        const emailMessage = `Hello ${data.name}, Thank you for contacting us. We have received your message: "${data.message}" We will get back to you shortly.E2E Support Team`;
+        await sendMail(data.email, emailMessage);
         return REST.success(res, contactUs, 'Contact Us created successfully');
     } catch (error) {
-        await transaction.rollback();
         return REST.error(res, error.message, 500);
     }
 });
+
 module.exports = router;
