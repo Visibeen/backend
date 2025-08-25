@@ -54,8 +54,6 @@ router.post("/create-edms", async function (req, res) {
         });
         return REST.success(res, edms, 'EDMS created successfully');
     } catch (error) {
-        console.log(error, "error in create EDMS");
-
         return REST.error(res, error.message, 500);
     }
 })
