@@ -41,7 +41,6 @@ app.group('/api', (router) => {
 	router.use('/migrate', require("./api/migrate"));
 	router.use('/version', require("./api/version"));
 	router.use("/health", require("./api/health"));
-	router.use("/cron", require("./api/cron_jobs"));
 	router.group('/v1', (groupV1) => {
 		groupV1.use('/errors', require("./api/errors"));
 		groupV1.group('/customer', (groupRouter) => {

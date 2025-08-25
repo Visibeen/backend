@@ -14,7 +14,13 @@ const auth = require('../../../utils/auth');
 const axios = require('axios');
 
 
-router.get('/getBusinessProfile', async function (req, res) {	
+/*
+|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|                                                    Google My Business (GMB) Integration Routes
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+*/
+
+router.get('/getGmbAccount', async function (req, res) {	
 	try {
 		const { googleAccessToken } = req.query;
 		if (!googleAccessToken) {
@@ -28,7 +34,7 @@ router.get('/getBusinessProfile', async function (req, res) {
 			},
 		});		
 		if (response.data?.accounts && response.data?.accounts?.length > 0) {
-			return REST.success(res, response.data.accounts, 'GMB profiles found.');
+			return REST.success(res, response.data.accounts, 'GMB account fetched successfully.');
 		} else {
 			return REST.error(res, 'No GMB profiles found.', 404);
 		}
