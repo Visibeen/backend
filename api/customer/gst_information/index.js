@@ -23,17 +23,6 @@ const axios = require('axios');
 router.post("/create-gst-information", async function (req, res) {
     const cUser = req.body.current_user;
     try {
-        const rules = {
-            gst_details: 'required|string',
-            payment_details: 'required|string',
-            bank_name: 'required|string',
-            payment_with_gst: 'required|email',
-            net_payment: 'required|string',
-        };
-        const validator = make(req.body, rules);
-        if (!validator.validate()) {
-            return REST.error(res, validator.errors().first(), 422);
-        }
         const findUser = await models.User.findOne({
             where: {
                 id: cUser.id,
@@ -48,7 +37,7 @@ router.post("/create-gst-information", async function (req, res) {
                 gst_details: req.body.gst_details,
                 payment_details: req.body.payment_details,
                 bank_name: req.body.bank_name,
-                cheque_number:req.body.cheque_number,
+                cheque_number: req.body.cheque_number,
                 payment_with_gst: req.body.payment_with_gst,
                 net_payment: req.body.net_payment,
                 gst: req.body.gst,

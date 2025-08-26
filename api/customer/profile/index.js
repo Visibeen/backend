@@ -8,7 +8,7 @@ const models = require('../../../models');
 const moment = require("moment")
 const router = express.Router();
 const support = require('../../../utils/support');
-var REST = require("../../../utils/REST");
+var REST = require("../../../utils/REST");	
 const { compare } = require('../../../utils/hash');
 const auth = require('../../../utils/auth');
 const axios = require('axios');
@@ -159,7 +159,6 @@ router.get('/getLastFeed/:locationId', async function (req, res) {
 			return REST.error(res, 'Location ID is required.', 400);
 		}
 		const token = googleAccessToken.trim();
-		console.log('Using access token:', JSON.stringify(token));
 		const url = `https://mybusiness.googleapis.com/v4/${encodeURIComponent(locationId)}/localPosts`;
 		const response = await axios.get(url, {
 			headers: {
@@ -191,7 +190,6 @@ router.get('/getGmbInsights/:locationId', async function (req, res) {
 			return REST.error(res, 'Location ID is required.', 400);
 		}
 		const token = googleAccessToken.trim();
-		console.log('Using access token:', JSON.stringify(token));
 		const url = `https://mybusiness.googleapis.com/v4/${encodeURIComponent(locationId)}/insights`;
 		const response = await axios.get(url, {
 			headers: {
