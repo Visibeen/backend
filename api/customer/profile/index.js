@@ -20,7 +20,7 @@ const axios = require('axios');
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 */
 
-router.get('/getGmbAccount', async function (req, res) {	
+router.get('/getGmbAccount', async function (req, res) {
 	try {
 		const { googleAccessToken } = req.query;
 		if (!googleAccessToken) {
@@ -32,7 +32,7 @@ router.get('/getGmbAccount', async function (req, res) {
 				'Authorization': `Bearer ${token}`,
 				'Content-Type': 'application/json',
 			},
-		});		
+		});
 		if (response.data?.accounts && response.data?.accounts?.length > 0) {
 			return REST.success(res, response.data.accounts, 'GMB account fetched successfully.');
 		} else {
@@ -86,7 +86,7 @@ router.get('/getGmbratings/:locationId', async function (req, res) {
 	try {
 		const { googleAccessToken } = req.query;
 		const { locationId } = req.params;
-		if (!googleAccessToken || typeof googleAccessToken !== 'string' || !googleAccessToken.trim()) {
+		if (!googleAccessToken) {
 			return REST.error(res, 'Google access token is required.', 400);
 		}
 		if (!locationId) {
@@ -94,19 +94,18 @@ router.get('/getGmbratings/:locationId', async function (req, res) {
 		}
 
 		const token = googleAccessToken.trim();
-		console.log('Using access token:', JSON.stringify(token));
 		const url = `https://mybusiness.googleapis.com/v4/${encodeURIComponent(locationId)}/reviews`;
 		const response = await axios.get(url, {
 			headers: {
-				'Authorization': `Bearer ${token}`,
+				'Authorization': `${token?.token}`,
 				'Content-Type': 'application/json',
 			},
 			params: {
 				pageSize: 100,
 			},
 		});
-		const reviews = response.data?.reviews;
-		if (Array.isArray(reviews) && reviews.length > 0) {
+		const reviews = response?.data?.reviews;
+		if (reviews.length > 0) {
 			return REST.success(res, reviews, 'GMB reviews found.');
 		} else {
 			return REST.error(res, 'No GMB reviews found.', 404);
@@ -180,7 +179,7 @@ router.get('/getLastFeed/:locationId', async function (req, res) {
 	} catch (error) {
 		return REST.error(res, error.message, error.response?.status || 500);
 	}
-});	
+});
 router.get('/getGmbInsights/:locationId', async function (req, res) {
 	try {
 		const { googleAccessToken } = req.query;
@@ -214,51 +213,80 @@ router.get('/getGmbInsights/:locationId', async function (req, res) {
 	}
 });
 router.post('/search-gmb-profile', async function (req, res) {
-  try {
-    const { googleAccessToken, query } = req.body;
+	try {
+		const { googleAccessToken, query } = req.body;
 
-    if (!googleAccessToken || typeof googleAccessToken !== 'string' || !googleAccessToken.trim()) {
-      return REST.error(res, 'Google access token is required.', 400);
-    }
-    if (!query || typeof query !== 'string' || !query.trim()) {
-      return REST.error(res, 'Search query is required.', 400);
-    }
-    const token = googleAccessToken.trim();
-    const textQuery = query.trim();
+		if (!googleAccessToken || typeof googleAccessToken !== 'string' || !googleAccessToken.trim()) {
+			return REST.error(res, 'Google access token is required.', 400);
+		}
+		if (!query || typeof query !== 'string' || !query.trim()) {
+			return REST.error(res, 'Search query is required.', 400);
+		}
+		const token = googleAccessToken.trim();
+		const textQuery = query.trim();
 
-    const fieldMask = [
-      'places.displayName',
-      'places.formattedAddress',
-      'places.websiteUri',
-      'places.types',
-      'places.phoneNumbers',
-      'places.latlng'
-    ].join(',');
+		const fieldMask = [
+			'places.displayName',
+			'places.formattedAddress',
+			'places.websiteUri',
+			'places.types',
+			'places.phoneNumbers',
+			'places.latlng'
+		].join(',');
 
-    const response = await axios.post(
-      'https://places.googleapis.com/v1/places:searchText',
-      {
-        textQuery: textQuery,
-        pageSize: 20
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-FieldMask': fieldMask,
-          'Authorization': `Bearer ${token}`
-        }
-      }
-    );
-    const places = response.data?.places;
-    if (Array.isArray(places) && places.length > 0) {
-      return REST.success(res, places, 'Places found.');
-    } else {
-      return REST.error(res, 'No places found.', 404);
-    }
-  } catch (error) {
-    console.error('Places search error:', error.response?.data || error.message);
-    return REST.error(res, error.message, error.response?.status || 500);
-  }
+		const response = await axios.post(
+			'https://places.googleapis.com/v1/places:searchText',
+			{
+				textQuery: textQuery,
+				pageSize: 20
+			},
+			{
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Goog-FieldMask': fieldMask,
+					'Authorization': `Bearer ${token}`
+				}
+			}
+		);
+		const places = response.data?.places;
+		if (Array.isArray(places) && places.length > 0) {
+			return REST.success(res, places, 'Places found.');
+		} else {
+			return REST.error(res, 'No places found.', 404);
+		}
+	} catch (error) {
+		console.error('Places search error:', error.response?.data || error.message);
+		return REST.error(res, error.message, error.response?.status || 500);
+	}
+});
+router.get('/get-gmb-verifyAccount/:locationId', async function (req, res) {
+	try {
+		const { googleAccessToken } = req.query;
+		const { locationId } = req.params;
+		if (!googleAccessToken) {
+			return REST.error(res, 'Google access token is required.', 400);
+		}
+		if (!locationId) {
+			return REST.error(res, 'Location ID is required.', 400);
+		}
+		const token = googleAccessToken.trim();
+		const url = `https://mybusinessverifications.googleapis.com/v1/locations/${locationId}/VoiceOfMerchantState`;
+		const response = await axios.get(url, {
+			headers: {
+				Authorization: `Bearer ${token}`,
+				'Content-Type': 'application/json',
+			},
+		});
+		
+		if (response?.data?.VoiceOfMerchantState) {
+			return REST.success(res, response.data.VoiceOfMerchantState, 'GMB Verification Account Fetched Successfully.');
+		} else {
+			return REST.error(res, 'No GMB profiles found.', 404);
+		}
+	} catch (error) {
+		console.error('Error details:', error.response?.data || error.message);
+		return REST.error(res, error.response?.data?.error?.message || error.message, error.response?.status || 500);
+	}
 });
 
 module.exports = router;
