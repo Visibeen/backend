@@ -25,24 +25,6 @@ const axios = require('axios');
 router.post("/create-cro-information", async function (req, res) {
     const cUser = req.body.current_user;
     try {
-        const rules = {
-            cro_employee_name: 'required|string',
-            seo_employee_name: 'required|string',
-            cro_category: 'required|string',
-            fa_account: 'required|string',
-            seo_post_period: 'required|string',
-            total_post: 'required|integer',
-            report_period: 'required|string',
-            client_status: 'required|string',
-            email: 'required|email',
-            password: 'required|string',
-            google_account: 'string',
-            location: 'string',
-        };
-        const validator = make(req.body, rules);
-        if (!validator.validate()) {
-            return REST.error(res, validator.errors().first(), 422);
-        }
         const findUser = await models.User.findOne({
             where: {
                 id: cUser.id,

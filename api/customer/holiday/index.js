@@ -19,8 +19,8 @@ const { make } = require('simple-body-validator');
 
 // create holiday
 router.post("/create-holiday", async function (req, res) {
-    const cUser = req.body.current_user;    
-    try {        
+    const cUser = req.body.current_user;
+    try {
         const rules = {
             name: 'required|string',
             date: 'required|string',
@@ -32,13 +32,13 @@ router.post("/create-holiday", async function (req, res) {
         }
         const findUser = await models.User.findOne({
             where: {
-                id:cUser.id,
+                id: cUser.id,
             }
         });
         if (!findUser) {
             return REST.error(res, 'User not found', 404);
         }
-        
+
         let holiday = await models.sequelize.transaction(async (transaction) => {
             let data = await models.holiday.create({
                 user_id: cUser.id,
@@ -63,7 +63,7 @@ router.get("/get-all-holidays", async function (req, res) {
         const holidays = await models.holiday.findAll({
             where: { user_id: cUser.id },
             attributes: ['id', 'user_id', 'name', 'date', 'template', 'status', 'created_by', 'updated_by', 'image', 'createdAt', 'updatedAt'],
-            order: [['date', 'DESC']],
+            order: [['id', 'DESC']],
             include: [
                 {
                     model: models.User,
@@ -72,10 +72,12 @@ router.get("/get-all-holidays", async function (req, res) {
                 {
                     model: models.User,
                     as: 'createdBy',
+                    attributes: ["id", "name"]
                 },
                 {
                     model: models.User,
                     as: 'updatedBy',
+                    attributes: ["id", "name"]
                 }
             ]
         });
