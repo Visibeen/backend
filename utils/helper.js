@@ -270,35 +270,7 @@ const sendCustomerSMS = async (phone_number, quotationUid) => {
         console.error('Error sending SMS:', error);
     }
 };
-const sendEmail = async (recipients, subject, htmlContent) => {
-    try {
-        const email = "tech.support@indilink.in";
-        const transporter = nodemailer.createTransport({
-            host: "smtp.zoho.in",
-            port: 587,
-            secure: false, // true for 465, false for other ports
-            auth: {
-                user: email,
-                pass: "Ghw3Sbgci6Em"
-            }
-        });
-
-        const mailOptions = {
-            from: `IndiLink <${email}>`,
-            to: Array.isArray(recipients) ? recipients.join(", ") : recipients,
-            subject: subject,
-            html: htmlContent,
-        };
-        const info = await transporter.sendMail(mailOptions);
-        console.log("Email sent: " + info.response);
-        return true;
-    } catch (error) {
-        console.error("Failed to send email:", error);
-        return false;
-    }
-};
 module.exports = {
-    sendEmail,
     socketEventEmit,
     //sendPushNotification,
     sendMail,

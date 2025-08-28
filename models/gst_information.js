@@ -13,70 +13,76 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       autoIncrement: true
     },
-    user_id:{
+    user_id: {
       type: DataTypes.BIGINT,
     },
-    gst_details:{
+    gst_details: {
       type: DataTypes.STRING,
     },
-    payment_details:{
+    start_date: {
+      type: DataTypes.STRING
+    },
+    end_date: {
+      type: DataTypes.STRING
+    },
+    payment_details: {
       type: DataTypes.STRING,
     },
-    bank_name:{
+    bank_name: {
       type: DataTypes.STRING,
     },
-    cheque_number:{
+    cheque_number: {
       type: DataTypes.STRING,
     },
-    payment_with_gst:{
+    payment_with_gst: {
       type: DataTypes.STRING,
     },
     net_payment: {
       type: DataTypes.STRING,
     },
-    gst:{
+    gst: {
       type: DataTypes.STRING,
     },
-    advance:{
+    advance: {
       type: DataTypes.STRING,
     },
-    pending:{
+    pending: {
       type: DataTypes.STRING,
     },
-    top_up_amount:{
+    top_up_amount: {
       type: DataTypes.STRING,
     },
-    net_sale:{
+    net_sale: {
       type: DataTypes.STRING,
     },
-    emi_date:{
+    emi_date: {
       type: DataTypes.DATE,
     },
-    emi_payment_per_month:{
+    emi_payment_per_month: {
       type: DataTypes.STRING,
     },
-    esc_amount_number:{
+    esc_amount_number: {
       type: DataTypes.STRING,
     },
-    esc_bank_name:{
+    esc_bank_name: {
       type: DataTypes.STRING,
     },
-    esc_ifsc_code:{
+    esc_ifsc_code: {
       type: DataTypes.STRING,
     },
-    umrn_number:{
+    umrn_number: {
       type: DataTypes.STRING,
     },
-    contact_person:{
+    contact_person: {
       type: DataTypes.STRING,
     },
-    contact_number:{
+    contact_number: {
       type: DataTypes.STRING,
     },
-    alternative_contact_number:{
+    alternative_contact_number: {
       type: DataTypes.STRING,
     },
-    status:{
+    status: {
       type: DataTypes.STRING,
       defaultValue: 'active'
     }

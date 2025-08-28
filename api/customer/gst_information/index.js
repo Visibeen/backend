@@ -35,6 +35,8 @@ router.post("/create-gst-information", async function (req, res) {
             let data = await models.gst_information.create({
                 user_id: cUser.id,
                 gst_details: req.body.gst_details,
+                start_date:req.body.start_date,
+                end_date:req.body.end_date,
                 payment_details: req.body.payment_details,
                 bank_name: req.body.bank_name,
                 cheque_number: req.body.cheque_number,
