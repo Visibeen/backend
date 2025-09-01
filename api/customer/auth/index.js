@@ -374,5 +374,21 @@ router.post('/update_Password', async function (req, res) {
 		return REST.error(res, error.message, 500);
 	}
 });
+router.post('/logout', async (req, res) => {
+	try {
+		const token = req.headers.authorization;
+		if (!token) {
+			return REST.error(res, 'Token is required', 401);
+		}
+		const data = await models.User.update({ token: null },{ where: { token } });
+		if (data === 0) {
+			return REST.error(res, 'Invalid token or user not found', 401);
+		}
+		return REST.success(res, null, 'Logout successful');
+	} catch (error) {
+		return REST.error(res, 'Internal server error', 500);
+	}
+});
+
 
 module.exports = router
