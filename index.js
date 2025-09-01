@@ -31,7 +31,6 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(fileUpload({ createParentPath: true, limits: { fileSize: config.limit_file_size } }));
 
 const middleware = require("./utils/middleware")
-
 app.get('/health', (req, res) => {
 	res.status(200).send('OK');
 });
