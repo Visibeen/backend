@@ -8,7 +8,7 @@ const models = require('../../../models');
 const moment = require("moment")
 const router = express.Router();
 const support = require('../../../utils/support');
-var REST = require("../../../utils/REST");	
+var REST = require("../../../utils/REST");
 const { compare } = require('../../../utils/hash');
 const auth = require('../../../utils/auth');
 const axios = require('axios');
@@ -148,27 +148,31 @@ router.get('/getGmbMedia/:locationId', async function (req, res) {
 		return REST.error(res, error.message, error.response?.status || 500);
 	}
 });
-router.get('/getLastFeed/:locationId', async function (req, res) {
+router.get('/getLastFeed/:accountId/:locationId', async function (req, res) {
 	try {
 		const { googleAccessToken } = req.query;
-		const { locationId } = req.params;
+		const { locationId, accountId } = req.params;
 		if (!googleAccessToken || typeof googleAccessToken !== 'string' || !googleAccessToken.trim()) {
 			return REST.error(res, 'Google access token is required.', 400);
 		}
 		if (!locationId) {
 			return REST.error(res, 'Location ID is required.', 400);
 		}
-		const token = googleAccessToken.trim();
-		const url = `https://mybusiness.googleapis.com/v4/${encodeURIComponent(locationId)}/localPosts`;
+		if (!accountId) {
+			return REST.error(res, 'Account ID is required.', 400);
+		}
+
+		const token = googleAccessToken.trim();		
+		const url = `https://mybusiness.googleapis.com/v4/accounts/${encodeURIComponent(accountId)}/locations/${encodeURIComponent(locationId)}/localPosts`;
 		const response = await axios.get(url, {
 			headers: {
-				'Authorization': `Bearer ${token}`,
+				Authorization: `Bearer ${token}`,
 				'Content-Type': 'application/json',
 			},
 			params: {
-				pageSize: 100,
+				pageSize: 10,
 			},
-		});
+		});			
 		const posts = response.data?.localPosts;
 		if (Array.isArray(posts) && posts.length > 0) {
 			return REST.success(res, posts, 'GMB posts found.');
@@ -178,7 +182,7 @@ router.get('/getLastFeed/:locationId', async function (req, res) {
 	} catch (error) {
 		return REST.error(res, error.message, error.response?.status || 500);
 	}
-});
+});;
 router.get('/getGmbInsights/:locationId', async function (req, res) {
 	try {
 		const { googleAccessToken } = req.query;
@@ -275,7 +279,7 @@ router.get('/get-gmb-verifyAccount/:locationId', async function (req, res) {
 				'Content-Type': 'application/json',
 			},
 		});
-		
+
 		if (response?.data?.VoiceOfMerchantState) {
 			return REST.success(res, response.data.VoiceOfMerchantState, 'GMB Verification Account Fetched Successfully.');
 		} else {
@@ -284,6 +288,35 @@ router.get('/get-gmb-verifyAccount/:locationId', async function (req, res) {
 	} catch (error) {
 		console.error('Error details:', error.response?.data || error.message);
 		return REST.error(res, error.response?.data?.error?.message || error.message, error.response?.status || 500);
+	}
+});
+router.patch('/gmb-notifications/:accountId', async function (req, res) {
+	try {
+		const { googleAccessToken } = req.query;
+		const { accountId } = req.params;
+		if (!googleAccessToken || typeof googleAccessToken !== 'string' || !googleAccessToken.trim()) {
+			return REST.error(res, 'Google access token is required.', 400);
+		}
+		if (!accountId) {
+			return REST.error(res, 'Account ID is required.', 400);
+		}
+
+		const token = googleAccessToken.trim();
+		const pubsubBody = {
+			pubsubTopic: "projects/myapi-430807/topics/gmb_notification"
+		};
+
+		const url = `https://mybusinessnotifications.googleapis.com/v1/accounts/${encodeURIComponent(accountId)}/notificationSetting?updateMask=pubsub_topic`;
+		const response = await axios.patch(url, pubsubBody, {
+			headers: {
+				'Authorization': `Bearer ${token}`,
+				'Content-Type': 'application/json',
+			}
+		});
+		return REST.success(res, response.data, 'Pub/Sub topic configured successfully.');
+	} catch (error) {
+		console.error('Pub/Sub setup error:', error?.response?.data || error.message);
+		return REST.error(res, error.message, error.response?.status || 500);
 	}
 });
 

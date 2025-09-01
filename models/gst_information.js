@@ -85,6 +85,15 @@ module.exports = (sequelize, DataTypes) => {
     status: {
       type: DataTypes.STRING,
       defaultValue: 'active'
+    },
+    gst_name:{
+      type: DataTypes.STRING,
+    },
+    gst_address:{
+      type: DataTypes.TEXT,
+    },
+    supply_state:{
+      type: DataTypes.STRING,
     }
   }, {
     sequelize,

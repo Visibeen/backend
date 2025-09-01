@@ -37,11 +37,13 @@ router.post('/create-contact', async function (req, res) {
         const contactUs = await models.contact_us.create({
             name: data.name,
             email: data.email,
+            complaint_type:data.complaint_type,
             message: data.message,
             business_name: data.business_name,
             business_category: data.business_category,
             phone_number: data.phone_number,
             date_and_time: data.date_and_time,
+            time: data.time,
             location: data.location,
             lat: data.lat,
             long: data.long,

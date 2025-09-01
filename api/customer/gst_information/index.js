@@ -56,6 +56,9 @@ router.post("/create-gst-information", async function (req, res) {
                 contact_person: req.body.contact_person,
                 contact_number: req.body.contact_number,
                 alternative_contact_number: req.body.alternative_contact_number,
+                gst_name: req.body.gst_name,
+                gst_address: req.body.gst_address,
+                supply_state: req.body.supply_state,    
             }, { transaction });
             return data;
         });
