@@ -26,11 +26,14 @@ module.exports = (sequelize, DataTypes) => {
     email:{
       type: DataTypes.STRING,
     },
+    complaint_type:{
+      type: DataTypes.STRING,
+    },
     phone_number: {
       type: DataTypes.STRING,
     },
     date_and_time:{
-      type: DataTypes.DATE,
+      type: DataTypes.STRING,
     },
     location:{
       type: DataTypes.STRING,
