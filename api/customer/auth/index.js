@@ -380,7 +380,7 @@ router.post('/logout', async (req, res) => {
 		if (!token) {
 			return REST.error(res, 'Token is required', 401);
 		}
-		const data = await models.User.update({ token: null },{ where: { token } });
+		const data = await models.User.update({ token: null, google_access_token: null }, { where: { token } });
 		if (data === 0) {
 			return REST.error(res, 'Invalid token or user not found', 401);
 		}
