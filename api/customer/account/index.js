@@ -24,14 +24,14 @@ const axios = require('axios');
 router.post("/create-account", async function (req, res) {
     const cUser = req.body.current_user;    
     try {
-        const rules = {
-            business_name: 'required|string',
-            industry_type: 'required|string',
-        };
-        const validator = make(req.body, rules);
-        if (!validator.validate()) {
-            return REST.error(res, validator.errors().first(), 422);
-        }
+        // const rules = {
+        //     business_name: 'required|string',
+        //     // industry_type: 'required|string',
+        // };
+        // const validator = make(req.body, rules);
+        // if (!validator.validate()) {
+        //     return REST.error(res, validator.errors().first(), 422);
+        // }
         let account = await models.sequelize.transaction(async (transaction) => {
             let data = await models.account.create({
                 user_id:cUser.id,

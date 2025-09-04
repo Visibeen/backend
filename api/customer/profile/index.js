@@ -162,7 +162,7 @@ router.get('/getLastFeed/:accountId/:locationId', async function (req, res) {
 			return REST.error(res, 'Account ID is required.', 400);
 		}
 
-		const token = googleAccessToken.trim();		
+		const token = googleAccessToken.trim();
 		const url = `https://mybusiness.googleapis.com/v4/accounts/${encodeURIComponent(accountId)}/locations/${encodeURIComponent(locationId)}/localPosts`;
 		const response = await axios.get(url, {
 			headers: {
@@ -172,7 +172,7 @@ router.get('/getLastFeed/:accountId/:locationId', async function (req, res) {
 			params: {
 				pageSize: 10,
 			},
-		});			
+		});
 		const posts = response.data?.localPosts;
 		if (Array.isArray(posts) && posts.length > 0) {
 			return REST.success(res, posts, 'GMB posts found.');
@@ -319,5 +319,36 @@ router.patch('/gmb-notifications/:accountId', async function (req, res) {
 		return REST.error(res, error.message, error.response?.status || 500);
 	}
 });
+router.get('/get-gmb-products/:locationId', async function (req, res) {
+	try {
+		const { googleAccessToken } = req.query;
+		const { locationId } = req.params;
+		if (!googleAccessToken) {
+			return REST.error(res, 'Google access token is required.', 400);
+		}
+		if (!locationId) {
+			return REST.error(res, 'Location ID is required.', 400);
+		}
+		const token = googleAccessToken.trim();
+		const url = `https://mybusinessbusinessinformation.googleapis.com/v1/${encodeURIComponent(locationId)}/products`;
+		const response = await axios.get(url, {
+			headers: {
+				'Authorization': `Bearer ${token}`,
+				'Content-Type': 'application/json',
+			},
+			params: {
+				pageSize: 100,
+			},
+		});
+		const products = response.data?.products;
+		if (Array.isArray(products) && products.length > 0) {
+			return REST.success(res, products, 'GMB products found.');
+		} else {
+			return REST.error(res, 'No GMB products found.', 404);
+		}
+	} catch (error) {
+		return REST.error(res, error.message, error.response?.status || 500);
 
+	}
+})
 module.exports = router;
