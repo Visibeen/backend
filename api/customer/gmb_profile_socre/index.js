@@ -71,7 +71,7 @@ router.get("/get-gmb-profile-socre", async function (req, res) {
                 {
                     model: models.User,
                     as: 'userdetails',
-                    attributes:["id","user_uid","full_name","email","phone_number","status","account_type","createdAt","updatedAt"]
+                    attributes: ["id", "user_uid", "full_name", "email", "phone_number", "status", "account_type", "createdAt", "updatedAt"]
                 }
             ],
             order: [['created_at', 'DESC']]
