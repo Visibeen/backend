@@ -12,6 +12,7 @@ const account = require('./account.js')(sequelize, Sequelize.DataTypes);
 const gst_information = require('./gst_information.js')(sequelize, Sequelize.DataTypes);
 const cro_information = require('./cro_information.js')(sequelize, Sequelize.DataTypes);
 const holiday = require('./holiday.js')(sequelize, Sequelize.DataTypes);
+const gmb_profile_socre = require('./gmb_profile_socre.js')(sequelize, Sequelize.DataTypes);
 
 // user and bussiness account relationship
 business_account.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails' })
@@ -40,6 +41,9 @@ User.hasMany(holiday, { foreignKey: 'created_by', as: 'createdHolidays' });
 // USER AND UPDATED BY RELATIONSHIP 
 holiday.belongsTo(User, { foreignKey: 'updated_by', as: 'updatedBy' })
 User.hasMany(holiday, { foreignKey: 'updated_by', as: 'updatedHolidays' });
+// USER AND GMB PROFILE SCORE RELATIONSHIP
+gmb_profile_socre.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails' })
+User.hasMany(gmb_profile_socre, { foreignKey: 'user_id', as: 'gmb_profile_socre' });
 
 module.exports = db;
 db.User = User;
@@ -52,6 +56,7 @@ db.account = account;
 db.gst_information = gst_information;
 db.cro_information = cro_information;
 db.holiday = holiday;
+db.gmb_profile_socre = gmb_profile_socre;
 
 
 Object.keys(db).forEach(modelName => {
