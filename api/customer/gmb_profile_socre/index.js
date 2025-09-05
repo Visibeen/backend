@@ -62,25 +62,44 @@ router.post('/save-gmb-profile-socre', async function (req, res) {
 })
 
 // Get GMB Profile Socre list
-router.get("/get-gmb-profile-socre", async function (req, res) {
+router.get("/get-gmb-profile-score", async function (req, res) {
     const cUser = req.body.current_user;
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const offset = (page - 1) * pageSize;
     try {
-        const gmbProfileSocreList = await models.gmb_profile_socre.findAll({
+        const { count, rows } = await models.gmb_profile_socre.findAndCountAll({
             where: { user_id: cUser.id },
             include: [
                 {
                     model: models.User,
                     as: 'userdetails',
-                    attributes: ["id", "user_uid", "full_name", "email", "phone_number", "status", "account_type", "createdAt", "updatedAt"]
+                    attributes: [
+                        "id", "user_uid", "full_name", "email", 
+                        "phone_number", "status", "account_type", 
+                        "createdAt", "updatedAt"
+                    ]
                 }
             ],
-            order: [['created_at', 'DESC']]
+            order: [['created_at', 'DESC']],
+            pageSize,
+            offset
         });
-        return REST.success(res, gmbProfileSocreList, 'Get GMB Profile Socre list success.');
+        const totalPages = Math.ceil(count / pageSize);
+        return REST.success(res, {
+            data: rows,
+            pagination: {
+                totalItems: count,
+                currentPage: page,
+                totalPages,
+                pageSize: pageSize
+            }
+        }, 'Get GMB Profile Score list success.');
     } catch (error) {
         return REST.error(res, error.message, 500);
     }
 });
+
 // Get GMB Profile Socre by ID
 router.get("/get-gmb-profile-socre/:id", async function (req, res) {
     try {
