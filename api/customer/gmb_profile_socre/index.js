@@ -63,13 +63,15 @@ router.post('/save-gmb-profile-socre', async function (req, res) {
 
 // Get GMB Profile Socre list
 router.get("/get-gmb-profile-socre", async function (req, res) {
+    const cUser = req.body.current_user;
     try {
         const gmbProfileSocreList = await models.gmb_profile_socre.findAll({
+            where: { user_id: cUser.id },
             include: [
                 {
                     model: models.User,
                     as: 'userdetails',
-                    attributes:["id","user_uid","full_name","email","phone_number","status","account_type","createdAt","updatedAtjgj"]
+                    attributes:["id","user_uid","full_name","email","phone_number","status","account_type","createdAt","updatedAt"]
                 }
             ],
             order: [['created_at', 'DESC']]
