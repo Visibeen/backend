@@ -17,7 +17,6 @@ const { make } = require('simple-body-validator');
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 */
 
-// create holiday
 router.post("/create-holiday", async function (req, res) {
     const cUser = req.body.current_user;
     try {
@@ -55,8 +54,6 @@ router.post("/create-holiday", async function (req, res) {
         return REST.error(res, "Failed to create holiday", 500);
     }
 });
-
-// get all holidays
 router.get("/get-all-holidays", async function (req, res) {
     const cUser = req.body.current_user;
     try {

@@ -20,18 +20,9 @@ const axios = require('axios');
 |                                                  Account Management Routes
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 */
-// create account
 router.post("/create-account", async function (req, res) {
     const cUser = req.body.current_user;    
     try {
-        // const rules = {
-        //     business_name: 'required|string',
-        //     // industry_type: 'required|string',
-        // };
-        // const validator = make(req.body, rules);
-        // if (!validator.validate()) {
-        //     return REST.error(res, validator.errors().first(), 422);
-        // }
         let account = await models.sequelize.transaction(async (transaction) => {
             let data = await models.account.create({
                 user_id:cUser.id,
@@ -56,8 +47,6 @@ router.post("/create-account", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-
-// Get account list
 router.get("/get-accounts", async function (req, res) {
     try {
         const accounts = await models.account.findAll({
