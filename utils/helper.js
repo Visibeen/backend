@@ -270,6 +270,7 @@ const sendCustomerSMS = async (phone_number, quotationUid) => {
         console.error('Error sending SMS:', error);
     }
 };
+
 module.exports = {
     socketEventEmit,
     //sendPushNotification,
