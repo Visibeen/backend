@@ -21,7 +21,6 @@ const axios = require('axios');
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 */
 
-// create CRO information
 router.post("/create-cro-information", async function (req, res) {
     const cUser = req.body.current_user;
     try {
@@ -58,7 +57,6 @@ router.post("/create-cro-information", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Get CRO information list
 router.get("/get-cro-information", async function (req, res) {
     try {
         const croInformation = await models.cro_information.findAll({
@@ -75,7 +73,6 @@ router.get("/get-cro-information", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Get CRO information by ID
 router.get("/get-cro-information/:id", async function (req, res) {
     try {
         const croInformation = await models.cro_information.findOne({
@@ -89,7 +86,6 @@ router.get("/get-cro-information/:id", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Update CRO information
 router.put("/update-cro-information/:id", async function (req, res) {
     const cUser = req.body.current_user;
     try {
@@ -106,7 +102,6 @@ router.put("/update-cro-information/:id", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Delete CRO information
 router.delete("/delete-cro-information/:id", async function (req, res) {
     const cUser = req.body.current_user;
     try {

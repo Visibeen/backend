@@ -60,8 +60,6 @@ router.post('/save-gmb-profile-socre', async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 })
-
-// Get GMB Profile Socre list
 router.get("/get-gmb-profile-score", async function (req, res) {
     const cUser = req.body.current_user;
     const page = parseInt(req.query.page) || 1;
@@ -99,8 +97,6 @@ router.get("/get-gmb-profile-score", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-
-// Get GMB Profile Socre by ID
 router.get("/get-gmb-profile-socre/:id", async function (req, res) {
     try {
         const gmbProfileSocre = await models.gmb_profile_socre.findOne({
@@ -120,7 +116,6 @@ router.get("/get-gmb-profile-socre/:id", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// delete GMB Profile Socre
 router.delete("/delete-gmb-profile-socre/:id", async function (req, res) {
     const cUser = req.body.current_user;
     try {

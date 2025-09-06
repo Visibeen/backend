@@ -19,7 +19,6 @@ const axios = require('axios');
 |                                                 GST Information Management Routes
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 */
-// create GST information
 router.post("/create-gst-information", async function (req, res) {
     const cUser = req.body.current_user;
     try {
@@ -67,7 +66,6 @@ router.post("/create-gst-information", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Get GST information list
 router.get("/get-gst-information", async function (req, res) {
     try {
         const gstInformation = await models.gst_information.findAll({
@@ -85,7 +83,6 @@ router.get("/get-gst-information", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Get GST information by ID
 router.get("/get-gst-information/:id", async function (req, res) {
     try {
         const gstInformation = await models.gst_information.findOne({
@@ -106,7 +103,6 @@ router.get("/get-gst-information/:id", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Update GST information
 router.put("/update-gst-information/:id", async function (req, res) {
     const cUser = req.body.current_user;
     try {
@@ -123,7 +119,6 @@ router.put("/update-gst-information/:id", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Delete GST information
 router.delete("/delete-gst-information/:id", async function (req, res) {
     const cUser = req.body.current_user;
     try {
