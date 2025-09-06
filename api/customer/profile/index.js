@@ -12,6 +12,7 @@ var REST = require("../../../utils/REST");
 const { compare } = require('../../../utils/hash');
 const auth = require('../../../utils/auth');
 const axios = require('axios');
+const puppeteer = require('puppeteer');
 
 
 /*
@@ -351,4 +352,86 @@ router.get('/get-gmb-products/:locationId', async function (req, res) {
 
 	}
 })
+
+class BusinessCategoryScraper {
+	constructor() {
+		this.browser = null;
+	}
+	async initBrowser() {
+		if (!this.browser) {
+			this.browser = await puppeteer.launch({
+				headless: true,
+				args: [
+					'--no-sandbox',
+					'--disable-setuid-sandbox',
+					'--disable-dev-shm-usage',
+					'--disable-gpu',
+					'--disable-web-security',
+					'--disable-blink-features=AutomationControlled',
+				],
+			});
+		}
+		return this.browser;
+	}
+
+	async extractCategory(businessName) {
+		try {
+			const browser = await this.initBrowser();
+			const page = await browser.newPage();
+			await page.setUserAgent(
+				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+			);
+			await page.setViewport({ width: 1366, height: 768 });
+			await page.evaluateOnNewDocument(() => {
+				Object.defineProperty(navigator, 'webdriver', {
+					get: () => undefined,
+				});
+			});
+			const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(businessName)}`;
+			await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+			await new Promise(resolve => setTimeout(resolve, 4000));
+			const result = await page.evaluate(() => {
+				const panel = document.querySelector('#rhs, .kp-blk, .knowledge-panel');
+				if (!panel) return { businessName: '', categories: [] };
+				const name = document.querySelector('h1, .kp-header h1, .kno-ecr-pt')?.innerText?.trim() || '';
+				const elements = panel.querySelectorAll(
+					'[data-attrid="subtitle"], [data-attrid="kc:/local:merged-vertical-subtitle"]'
+				);
+				for (const el of elements) {
+					const text = el.innerText?.trim();
+					const cleaned = text.replace(/^\d+(\.\d+)?★?[\d,]*\s*Google reviews\s*/i, '').trim();
+					if (cleaned && / in /.test(cleaned)) {
+						return {
+							businessName: name,
+							categories: [cleaned],
+						};
+					}
+				}
+				return { businessName: name, categories: [] };
+			});
+			await page.close();
+			return result;
+		} catch (err) {
+			throw err;
+		}
+	}
+}
+const scraper = new BusinessCategoryScraper();
+router.get('/get-business-category', async (req, res) => {
+	try {
+		const { businessName } = req.query;
+		if (!businessName || typeof businessName !== 'string') {
+			return REST.error(res, '"businessName" is required.', 400);
+		}
+		const result = await scraper.extractCategory(businessName.trim());
+		if (result.categories.length > 0 && result.businessName) {
+			return REST.success(res, result, 'Business category found.');
+		} else {
+			return REST.error(res, 'No business category found.', 404);
+		}
+	} catch (error) {
+		return REST.error(res, error.message, 500);
+	}
+})
+
 module.exports = router;

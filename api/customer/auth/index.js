@@ -121,7 +121,7 @@ router.post('/login', async function (req, res) {
 				const newUser = await models.sequelize.transaction(async (transaction) => {
 					return await models.User.create(userPayload, { transaction });
 				});
-				const token = auth.longTermToken({ userid: newUser.id }, config.USER_SECRET);
+				const token = auth.shortTermToken({ userid: newUser.id }, config.USER_SECRET);
 				await models.User.update({
 					token: token,
 					login_date: new Date()
@@ -129,7 +129,7 @@ router.post('/login', async function (req, res) {
 				const finalUser = await models.User.findOne({ where: { id: newUser.id } });
 				return REST.success(res, finalUser, 'Login successful.');
 			} else {
-				const token1 = auth.longTermToken({ userid: user.id }, config.USER_SECRET);
+				const token1 = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
 				await models.User.update({
 					token: token1,
 					login_date: new Date()
@@ -237,7 +237,7 @@ router.post('/google-login', async function (req, res) {
 
 			user = await models.User.findOne({ where: { id: user.id } });
 		}
-		const token = auth.longTermToken({ userid: user.id }, config.USER_SECRET);
+		const token = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
 		await models.User.update({
 			token: token,
 			login_date: new Date()
