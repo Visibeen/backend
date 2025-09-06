@@ -12,6 +12,7 @@ var REST = require("../../../utils/REST");
 const { compare } = require('../../../utils/hash');
 const auth = require('../../../utils/auth');
 const axios = require('axios');
+const puppeteer = require('puppeteer');
 
 
 /*
