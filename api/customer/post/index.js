@@ -20,7 +20,6 @@ const axios = require('axios');
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 */
 
-// create  post
 router.post("/create-post", async function (req, res) {
     const cUser = req.body.current_user;
     try {
@@ -55,7 +54,6 @@ router.post("/create-post", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Get post list
 router.get("/get-posts", async function (req, res) {
     try {
         const posts = await models.post.findAll({

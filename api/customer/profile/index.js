@@ -352,7 +352,6 @@ router.get('/get-gmb-products/:locationId', async function (req, res) {
 
 	}
 })
-
 class BusinessCategoryScraper {
 	constructor() {
 		this.browser = null;
