@@ -39,7 +39,7 @@ const sendMail = async (toEmail, message) => {
             secure: false,
             auth: {
                 user: "e2ebackupchd@gmail.com",
-                pass: "cqaf mtpy lloo wdpp", 
+                pass: "cqaf mtpy lloo wdpp",
             },
         });
 
