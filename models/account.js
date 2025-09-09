@@ -16,6 +16,9 @@ module.exports = (sequelize, DataTypes) => {
     user_id: {
       type: DataTypes.BIGINT,
     },
+    name:{
+      type: DataTypes.STRING,
+    },
     image: {
       type: DataTypes.TEXT,
     },
