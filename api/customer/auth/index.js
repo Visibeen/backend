@@ -228,9 +228,7 @@ router.post('/google-login', async function (req, res) {
 				return await models.User.create(userPayload, { transaction });
 			});
 		} else {
-			const token = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
 			await models.User.update({
-				token: token,
 				login_date: new Date(),
 				google_access_token: accessToken,
 				has_gmb_access: gmbCheck.hasGMBAccess,
@@ -239,6 +237,8 @@ router.post('/google-login', async function (req, res) {
 
 			user = await models.User.findOne({ where: { id: user.id } });
 		}
+		const token = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
+		await models.User.update({ token }, { where: { id: user.id } });
 		const finalUser = await models.User.findOne({ where: { id: user.id } });
 		return REST.success(res, {
 			user: finalUser,
@@ -247,7 +247,7 @@ router.post('/google-login', async function (req, res) {
 		}, 'Login successful.');
 
 	} catch (error) {
-		return REST.error(res, error.message, 500);
+		return REST.error(res, error.message || 'Server error', 500);
 	}
 });
 router.post('/forget_password', async function (req, res) {
