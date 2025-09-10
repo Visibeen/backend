@@ -86,7 +86,7 @@ router.post('/signUp', async function (req, res) {
 		const user_uid = 'UID_' + support.generateRandomNumber();
 		const userPayload = {
 			full_name,
-			role: 3,
+			role_id: 3,
 			email,
 			phone_number,
 			password: hashedPassword,
@@ -218,18 +218,20 @@ router.post('/google-login', async function (req, res) {
 				full_name: full_name || email.split('@')[0],
 				email,
 				user_uid,
-				role: 3,
+				role_id: 3,
 				account_type: 'google',
 				status: constants.USER.STATUSES.ACTIVE,
 				google_access_token: accessToken,
 				has_gmb_access: gmbCheck.hasGMBAccess
 			};
-
 			user = await models.sequelize.transaction(async (transaction) => {
 				return await models.User.create(userPayload, { transaction });
 			});
 		} else {
+			const token = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
 			await models.User.update({
+				token: token,
+				login_date: new Date(),
 				google_access_token: accessToken,
 				has_gmb_access: gmbCheck.hasGMBAccess,
 				last_login: new Date()
@@ -237,12 +239,6 @@ router.post('/google-login', async function (req, res) {
 
 			user = await models.User.findOne({ where: { id: user.id } });
 		}
-		const token = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
-		await models.User.update({
-			token: token,
-			login_date: new Date()
-		}, { where: { id: user.id } });
-
 		const finalUser = await models.User.findOne({ where: { id: user.id } });
 		return REST.success(res, {
 			user: finalUser,
