@@ -13,7 +13,6 @@ const gst_information = require('./gst_information.js')(sequelize, Sequelize.Dat
 const cro_information = require('./cro_information.js')(sequelize, Sequelize.DataTypes);
 const holiday = require('./holiday.js')(sequelize, Sequelize.DataTypes);
 const gmb_profile_socre = require('./gmb_profile_socre.js')(sequelize, Sequelize.DataTypes);
-const Payment = require('./payment.js')(sequelize, Sequelize.DataTypes);
 
 // user and bussiness account relationship
 business_account.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails',onDelete: 'CASCADE', onUpdate: 'CASCADE' })
@@ -45,9 +44,6 @@ User.hasMany(holiday, { foreignKey: 'updated_by', as: 'updatedHolidays',onDelete
 // USER AND GMB PROFILE SCORE RELATIONSHIP
 gmb_profile_socre.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails',onDelete: 'CASCADE', onUpdate: 'CASCADE' })
 User.hasMany(gmb_profile_socre, { foreignKey: 'user_id', as: 'gmb_profile_socre',onDelete: 'CASCADE', onUpdate: 'CASCADE' });
-// USER AND PAYMENT RELATIONSHIP
-Payment.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
-User.hasMany(Payment, { foreignKey: 'user_id', as: 'payments', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 
 module.exports = db;
 db.User = User;
@@ -61,7 +57,6 @@ db.gst_information = gst_information;
 db.cro_information = cro_information;
 db.holiday = holiday;
 db.gmb_profile_socre = gmb_profile_socre;
-db.Payment = Payment;
 
 
 Object.keys(db).forEach(modelName => {

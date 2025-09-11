@@ -55,7 +55,6 @@ app.group('/api', (router) => {
 			groupRouter.use('/cro-information', require('./api/customer/cro_information/index'));
 			groupRouter.use('/holiday', require('./api/customer/holiday/index'));
 			groupRouter.use('/gmb-profile-socre', require('./api/customer/gmb_profile_socre/index'));
-			groupRouter.use('/payment', require('./api/customer/payment/index'));
 		});
 	});
 });
