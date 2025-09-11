@@ -385,6 +385,20 @@ router.post('/logout', async (req, res) => {
 		return REST.error(res, 'Internal server error', 500);
 	}
 });
+router.delete('/delete-user/:id', async function (req, res) {
+	const cUser = req.body.current_user;
+	try {
+		const userId = req.params.id;
+		const user = await models.User.findOne({ where: { id: userId } });
+		if (!user) {
+			return REST.error(res, 'User not found', 404);
+		}
+		await models.User.destroy({ where: { id: userId } });
+		return REST.success(res, null, 'User deleted successfully');
+	} catch (error) {
+		return REST.error(res, error.message || 'Server error', 500);
 
+	}
+})
 
 module.exports = router
