@@ -14,6 +14,7 @@ const cro_information = require('./cro_information.js')(sequelize, Sequelize.Dat
 const holiday = require('./holiday.js')(sequelize, Sequelize.DataTypes);
 const gmb_profile_socre = require('./gmb_profile_socre.js')(sequelize, Sequelize.DataTypes);
 const Payment = require('./payment.js')(sequelize, Sequelize.DataTypes);
+const employee = require('./employee.js')(sequelize, Sequelize.DataTypes);
 
 // user and bussiness account relationship
 business_account.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails',onDelete: 'CASCADE', onUpdate: 'CASCADE' })
@@ -62,6 +63,7 @@ db.cro_information = cro_information;
 db.holiday = holiday;
 db.gmb_profile_socre = gmb_profile_socre;
 db.Payment = Payment;
+db.employee = employee;
 
 
 Object.keys(db).forEach(modelName => {
