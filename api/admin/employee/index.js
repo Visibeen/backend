@@ -17,7 +17,11 @@ const bcrypt = require('bcrypt');
 const { log } = require('console');
 
 
-
+/*
+|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|                                                 Employee Routes
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+*/
 
 router.post('/add-employee', async function (req, res) {
     const cUser = req.body.current_user;
@@ -80,6 +84,12 @@ router.get('/get-employees', async function (req, res) {
         const pageSize = parseInt(req.query.pageSize) || 10;
         const offset = (page - 1) * pageSize;
         const { count, rows: employees } = await models.employee.findAndCountAll({
+            include: [
+                {
+                    model: models.User,
+                    as: 'userDetails'
+                }
+            ],
             order: [['created_at', 'DESC']],
             limit: pageSize,
             offset: offset
@@ -93,7 +103,16 @@ router.get('/get-employees', async function (req, res) {
 router.get('/get-employee/:id', async function (req, res) {
     try {
         const employeeId = req.params.id;
-        const employee = await models.employee.findOne({ where: { id: employeeId } });
+        const employee = await models.employee.findOne({
+            where:
+                { id: employeeId },
+            include: [
+                {
+                    model: models.User,
+                    as: 'userDetails'
+                }
+            ],
+        });
         if (!employee) {
             return REST.error(res, 'Employee not found', 404);
         }

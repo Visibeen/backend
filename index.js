@@ -61,6 +61,8 @@ app.group('/api', (router) => {
 			groupRouter.use('/auth', require('./api/admin/User/index'));
 			groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([1])]);
 			groupRouter.use('/employee', require('./api/admin/employee/index'));
+			groupRouter.use('/leads', require('./api/admin/lead/index'))
+			groupRouter.use('/meeting', require('./api/admin/meeting/index'))
 		})
 	});
 });
