@@ -24,88 +24,99 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE'
     },
-    email:{
+    role_id: {
+      type: DataTypes.BIGINT,
+    },
+    report_to: {
+      type: DataTypes.BIGINT,
+      allowNull: false,
+      references: {
+        model: User,
+        key: "id"
+      }
+    },
+    email: {
       type: DataTypes.STRING,
     },
-    employee_code:{
+    employee_code: {
       type: DataTypes.STRING,
     },
-    first_name:{
+    first_name: {
       type: DataTypes.STRING,
     },
-    last_name:{
+    last_name: {
       type: DataTypes.STRING,
     },
-    department:{
+    department: {
       type: DataTypes.STRING,
     },
-    official_email:{
+    official_email: {
       type: DataTypes.STRING,
     },
-    phone_number:{
+    phone_number: {
       type: DataTypes.STRING,
     },
-    alternate_phone_number:{
+    alternate_phone_number: {
       type: DataTypes.STRING,
     },
-    date_of_joining:{
+    date_of_joining: {
       type: DataTypes.DATE,
     },
-    employee_type:{
+    employee_type: {
       type: DataTypes.STRING,
     },
-    additional_tags:{
+    additional_tags: {
       type: DataTypes.STRING,
     },
-    family_member_name:{
+    family_member_name: {
       type: DataTypes.STRING,
     },
-    family_relation:{
+    family_relation: {
       type: DataTypes.STRING,
     },
-    family_contact:{
+    family_contact: {
       type: DataTypes.STRING,
     },
-    comment:{
+    comment: {
       type: DataTypes.TEXT,
     },
-    permanent_address_line1:{
+    permanent_address_line1: {
       type: DataTypes.STRING,
     },
-    permanent_address_line2:{
+    permanent_address_line2: {
       type: DataTypes.STRING,
     },
-    permanent_city:{
+    permanent_city: {
       type: DataTypes.STRING,
     },
-    permanent_zip_code:{
+    permanent_zip_code: {
       type: DataTypes.STRING,
     },
-    permanent_state:{
+    permanent_state: {
       type: DataTypes.STRING,
     },
-    permanent_country:{
+    permanent_country: {
       type: DataTypes.STRING,
     },
-    current_address_line1:{
+    current_address_line1: {
       type: DataTypes.STRING,
     },
-    current_address_line2:{
+    current_address_line2: {
       type: DataTypes.STRING,
     },
-    current_city:{
+    current_city: {
       type: DataTypes.STRING,
     },
-    current_zip_code:{
+    current_zip_code: {
       type: DataTypes.STRING,
     },
-    current_state:{
+    current_state: {
       type: DataTypes.STRING,
     },
-    current_country:{
+    current_country: {
       type: DataTypes.STRING,
     },
-    status:{
+    status: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     }
@@ -114,7 +125,7 @@ module.exports = (sequelize, DataTypes) => {
     modelName: 'employee',
     tableName: 'employees',
     timestamps: true,
-    paranoid:false,
+    paranoid: false,
     underscored: true,
     freezeTableName: true,
   });
