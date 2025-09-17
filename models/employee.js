@@ -25,7 +25,7 @@ module.exports = (sequelize, DataTypes) => {
       onDelete: 'CASCADE'
     },
     role_id: {
-      type: DataTypes.BIGINT,
+      type: DataTypes.TEXT,
     },
     report_to: {
       type: DataTypes.BIGINT,
@@ -118,7 +118,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     status: {
       type: DataTypes.BOOLEAN,
-      defaultValue: false,
+      defaultValue: true,
     }
   }, {
     sequelize,

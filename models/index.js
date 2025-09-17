@@ -85,6 +85,9 @@ user_role.hasMany(employee, { foreignKey: "role_id", as: "employeeDetails" })
 employee.belongsTo(User, { foreignKey: "report_to", as: "reportby" })
 User.hasMany(employee, { foreignKey: "report_to", as: "employeeDetail" })
 
+User.belongsTo(user_role, { foreignKey: "role_id", as: "roles" })
+user_role.hasMany(User, { foreignKey: "role_id", as: "userDetails" })
+
 module.exports = db;
 db.User = User;
 db.user_role = user_role;
