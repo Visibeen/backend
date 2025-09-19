@@ -432,5 +432,216 @@ router.get('/get-business-category', async (req, res) => {
 		return REST.error(res, error.message, 500);
 	}
 })
+router.get('/textsearch', async function (req, res) {
+	try {
+		const { query, lat, lng, radius } = req.query;
+		if (!query) return res.status(400).json({ error: 'Missing query' });
+
+		const centerLat = lat ? Number(lat) : undefined;
+		const centerLng = lng ? Number(lng) : undefined;
+		const radiusMeters = radius ? Number(radius) : 5000;
+		const body = {
+			textQuery: query,
+			locationBias: (centerLat && centerLng) ? {
+				circle: {
+					center: { latitude: centerLat, longitude: centerLng },
+					radius: radiusMeters
+				}
+			} : undefined,
+			maxResultCount: 20
+		};
+
+		const fieldMask = [
+			'places.id',
+			'places.displayName',
+			'places.formattedAddress',
+			'places.rating',
+			'places.userRatingCount',
+			'places.photos',
+			'places.websiteUri',
+			'places.nationalPhoneNumber',
+			'places.internationalPhoneNumber',
+			'places.businessStatus',
+			'places.primaryType',
+			'places.types',
+			'places.location',
+			'places.currentOpeningHours',
+			'places.regularOpeningHours',
+			'places.priceLevel',
+			'places.editorialSummary',
+			'places.reviews'
+		].join(',');
+
+		const response = await axios.post(
+			'https://places.googleapis.com/v1/places:searchText',
+			body,
+			{
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Goog-Api-Key': process.env.GOOGLE_API_KEY,
+					'X-Goog-FieldMask': fieldMask
+				},
+			}
+		);
+		const places = Array.isArray(response.data.places) ? response.data.places : [];
+		const results = places.map((place) => {
+			const result = {
+				placeId: place.id,
+				name: place.displayName?.text || place.name,
+				address: place.formattedAddress,
+				rating: place.rating,
+				userRatingCount: place.userRatingCount || 0,
+				types: place.types || [],
+				photoReference: place.photos?.[0]?.name || null,
+				photoCount: place.photos?.length || 0,
+				businessStatus: place.businessStatus,
+				websiteUri: place.websiteUri,
+				nationalPhoneNumber: place.nationalPhoneNumber,
+				internationalPhoneNumber: place.internationalPhoneNumber,
+				primaryType: place.primaryType,
+				latitude: place.location?.latitude,
+				longitude: place.location?.longitude,
+				openingHours: place.currentOpeningHours?.weekdayDescriptions || place.regularOpeningHours?.weekdayDescriptions || [],
+				priceLevel: place.priceLevel,
+				description: place.editorialSummary?.text
+			};
+			return result;
+		});
+		res.json({ results });
+	} catch (error) {
+		return REST.error(res, error.message, error.response?.status || 500);
+	}
+})
+router.get('/placesDetails', async function (req, res) {
+	try {
+		const { placeId } = req.query;
+		if (!placeId) {
+			return res.status(400).json({ error: 'Missing placeId' });
+		}
+		const fieldMask = [
+			'id',
+			'displayName',
+			'formattedAddress',
+			'rating',
+			'userRatingCount',
+			'photos',
+			'websiteUri',
+			'nationalPhoneNumber',
+			'internationalPhoneNumber',
+			'businessStatus',
+			'primaryType',
+			'types',
+			'location',
+			'currentOpeningHours',
+			'regularOpeningHours',
+			'priceLevel',
+			'editorialSummary',
+			'reviews'
+		].join(',');
+		const response = await axios.get(
+			`https://places.googleapis.com/v1/places/${placeId}`,
+			{
+				headers: {
+					'X-Goog-Api-Key': process.env.GOOGLE_API_KEY,
+					'X-Goog-FieldMask': fieldMask
+				},
+			}
+		);
+		const place = response.data;
+		const result = {
+			placeId: place.id,
+			name: place.displayName?.text || place.name,
+			address: place.formattedAddress,
+			rating: place.rating,
+			userRatingCount: place.userRatingCount || 0,
+			types: place.types || [],
+			photoReference: place.photos?.[0]?.name || null,
+			photoCount: place.photos?.length || 0,
+			businessStatus: place.businessStatus,
+			websiteUri: place.websiteUri,
+			nationalPhoneNumber: place.nationalPhoneNumber,
+			internationalPhoneNumber: place.internationalPhoneNumber,
+			primaryType: place.primaryType,
+			latitude: place.location?.latitude,
+			longitude: place.location?.longitude,
+			openingHours: place.currentOpeningHours?.weekdayDescriptions || place.regularOpeningHours?.weekdayDescriptions || [],
+			priceLevel: place.priceLevel,
+			description: place.editorialSummary?.text
+		};
+		res.json({ result });
+	} catch (error) {
+		return REST.error(res, error.message, error.response?.status || 500);
+	}
+})
+router.get('/getPlacesNearBy', async function (req, res) {
+	try {
+		const { location, radius, keyword } = req.query;
+		if (!location || !keyword) {
+			return res.status(400).json({ error: 'Missing location or keyword' });
+		}
+		const radiusMeters = radius ? Number(radius) : 1000;
+		const [lat, lng] = location.split(',').map(Number);
+		const body = {
+			textQuery: keyword,
+			locationBias: {
+				circle: {
+					center: { latitude: lat, longitude: lng },
+					radius: radiusMeters
+				}
+			},
+			maxResultCount: 20
+		};
+		const fieldMask = [
+			'places.id',
+			'places.displayName',
+			'places.formattedAddress',
+			'places.rating',
+			'places.userRatingCount',
+			'places.photos',
+			'places.websiteUri',
+			'places.nationalPhoneNumber',
+			'places.internationalPhoneNumber',
+			'places.businessStatus',
+			'places.primaryType',
+			'places.types',
+			'places.location'
+		].join(',');
+		const response = await axios.post(
+			'https://places.googleapis.com/v1/places:searchText',
+			body,
+			{
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Goog-Api-Key': process.env.GOOGLE_API_KEY,
+					'X-Goog-FieldMask': fieldMask
+				},
+			}
+		);
+		const places = Array.isArray(response.data.places) ? response.data.places : [];
+		const results = places.map((place) => ({
+			place_id: place.id,
+			name: place.displayName?.text || place.name,
+			formatted_address: place.formattedAddress,
+			vicinity: place.formattedAddress,
+			rating: place.rating,
+			user_ratings_total: place.userRatingCount,
+			types: place.types || [],
+			photos: place.photos ? [{ photo_reference: place.photos[0]?.name }] : [],
+			business_status: place.businessStatus,
+			geometry: {
+				location: {
+					lat: place.location?.latitude,
+					lng: place.location?.longitude
+				}
+			}
+		}));
+		res.json({ results, status: 'OK' });
+	} catch (error) {
+		return REST.error(res, error.message, error.response?.status || 500);
+	}
+})
+
+
+
 
 module.exports = router;
