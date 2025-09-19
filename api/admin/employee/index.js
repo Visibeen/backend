@@ -17,20 +17,17 @@ const bcrypt = require('bcrypt');
 const { log } = require('console');
 
 
-
+/*
+|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|                                                 Employee Routes
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+*/
 
 router.post('/add-employee', async function (req, res) {
     const cUser = req.body.current_user;
     try {
         const validationRules = {
-            email: 'required|email',
-            first_name: 'required|string',
-            last_name: 'required|string',
-            department: 'required|string',
-            official_email: 'required|email',
-            phone_number: 'required|string',
-            date_of_joining: 'required|date',
-            employee_type: 'required|string',
+            role_id: "required|integer"
         };
         const validator = make(req.body, validationRules);
         if (!validator.validate()) {
@@ -39,6 +36,8 @@ router.post('/add-employee', async function (req, res) {
         let employeeRecord = await models.sequelize.transaction(async (transaction) => {
             let employeeData = await models.employee.create({
                 user_id: cUser.id,
+                role_id: req.body.role_id,
+                report_to: req.body.report_to,
                 email: req.body.email,
                 employee_code: req.body.employee_code,
                 first_name: req.body.first_name,
@@ -80,6 +79,20 @@ router.get('/get-employees', async function (req, res) {
         const pageSize = parseInt(req.query.pageSize) || 10;
         const offset = (page - 1) * pageSize;
         const { count, rows: employees } = await models.employee.findAndCountAll({
+            include: [
+                {
+                    model: models.user_role,
+                    as: "role"
+                },
+                {
+                    model: models.User,
+                    as: "reportby"
+                },
+                {
+                    model: models.User,
+                    as: 'userDetails'
+                }
+            ],
             order: [['created_at', 'DESC']],
             limit: pageSize,
             offset: offset
@@ -93,7 +106,24 @@ router.get('/get-employees', async function (req, res) {
 router.get('/get-employee/:id', async function (req, res) {
     try {
         const employeeId = req.params.id;
-        const employee = await models.employee.findOne({ where: { id: employeeId } });
+        const employee = await models.employee.findOne({
+            where:
+                { id: employeeId },
+            include: [
+                {
+                    model: models.user_role,
+                    as: "role"
+                },
+                {
+                    model: models.User,
+                    as: "reportby"
+                },
+                {
+                    model: models.User,
+                    as: 'userDetails'
+                }
+            ],
+        });
         if (!employee) {
             return REST.error(res, 'Employee not found', 404);
         }
