@@ -12,7 +12,11 @@ const auth = require('../../../utils/auth');
 
 
 
-
+/*
+|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|                                                Auth Routes
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+*/
 
 router.post('/login', async function (req, res) {
     try {
@@ -127,14 +131,5 @@ router.put('/profile-update/:id', async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 })
-router.get('/get-roles', async function (req, res) {
-    try {
-        const data = await models.user_role.findAll({
-            order: [["id","ASC"]]
-        })
-        return REST.success(res, data, 'Get Role successfully.');
-    } catch (error) {
-        return REST.error(res, error.message, 500);
-    }
-})
+
 module.exports = router;
