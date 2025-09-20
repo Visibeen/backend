@@ -192,4 +192,33 @@ router.delete('/delete-employee/:id', async function (req, res) {
         return REST.error(res, error.message, 500)
     }
 })
+router.get('/search-employee', async function (req, res) {
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const offset = (page - 1) * pageSize;
+    try {
+        const { globleSearch } = req.query
+        if (!globleSearch) {
+            return REST.error(res, "Search term is required", 400);
+        }
+        const { count, rows: employees } = await models.employee.findAndCountAll({
+            where: {
+                [Op.or]: [
+                    { first_name: { [Op.like]: `%${globleSearch}%` } },
+                    { last_name: { [Op.like]: `%${globleSearch}%` } },
+                    { email: { [Op.like]: `%${globleSearch}%` } },
+                    { employee_code: { [Op.like]: `%${globleSearch}%` } }
+
+                ]
+            },
+            order: [["id", "DESC"]],
+            limit: pageSize,
+            offset: offset
+        })
+        const totalPages = Math.ceil(count / pageSize);
+        return REST.success(res, { employees, totalItems: count, totalPages, currentPage: page }, 'Employees fetched successfully');
+    } catch (error) {
+        return REST.error(res, error.message, 500)
+    }
+})
 module.exports = router;
