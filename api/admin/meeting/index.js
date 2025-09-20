@@ -93,7 +93,13 @@ router.get('/get-meeting', async function (req, res) {
                 },
                 {
                     model: models.employee,
-                    as: "employeeDetails"
+                    as: "employeeDetails",
+                    include: [
+                        {
+                            model: models.user_role,
+                            as: "role"
+                        }
+                    ]
                 },
                 {
                     model: models.User,

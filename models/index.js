@@ -17,6 +17,7 @@ const Payment = require('./payment.js')(sequelize, Sequelize.DataTypes);
 const employee = require('./employee.js')(sequelize, Sequelize.DataTypes);
 const lead = require('./lead.js')(sequelize, Sequelize.DataTypes);
 const meeting = require('./meeting.js')(sequelize, Sequelize.DataTypes);
+const attendence = require('./attendence.js')(sequelize, Sequelize.DataTypes);
 
 // user and bussiness account relationship
 business_account.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
@@ -103,7 +104,8 @@ db.gmb_profile_socre = gmb_profile_socre;
 db.Payment = Payment;
 db.employee = employee;
 db.lead = lead;
-db.meeting = meeting
+db.meeting = meeting;
+db.attendence = attendence
 
 
 Object.keys(db).forEach(modelName => {
