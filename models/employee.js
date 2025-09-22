@@ -24,9 +24,6 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE'
     },
-    role_id: {
-      type: DataTypes.TEXT,
-    },
     report_to: {
       type: DataTypes.BIGINT,
       allowNull: false,

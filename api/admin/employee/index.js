@@ -27,16 +27,16 @@ router.post('/add-employee', async function (req, res) {
     const cUser = req.body.current_user;
     try {
         const validationRules = {
-            role_id: "required|integer"
+            role_id: "required|array",
         };
         const validator = make(req.body, validationRules);
         if (!validator.validate()) {
             return REST.error(res, validator.errors().all(), 422);
         }
+
         let employeeRecord = await models.sequelize.transaction(async (transaction) => {
             let employeeData = await models.employee.create({
                 user_id: cUser.id,
-                role_id: req.body.role_id,
                 report_to: req.body.report_to,
                 email: req.body.email,
                 employee_code: req.body.employee_code,
@@ -64,15 +64,21 @@ router.post('/add-employee', async function (req, res) {
                 current_zip_code: req.body.current_zip_code,
                 current_state: req.body.current_state,
                 current_country: req.body.current_country,
-            }
-                , { transaction });
+            }, { transaction });
+
+            const roleIds = req.body.role_id;
+            const employeeRoleData = roleIds.map(roleId => ({
+                employee_id: employeeData.id,
+                role_id: roleId,
+            }));
+            await models.employee_role.bulkCreate(employeeRoleData, { transaction });
             return employeeData;
         });
         return REST.success(res, employeeRecord, 'Employee added successfully');
     } catch (error) {
-        return REST.error(res, error.message, 500)
+        return REST.error(res, error.message, 500);
     }
-})
+});
 router.get('/get-employees', async function (req, res) {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -82,7 +88,7 @@ router.get('/get-employees', async function (req, res) {
             include: [
                 {
                     model: models.user_role,
-                    as: "role"
+                    as: "roles"
                 },
                 {
                     model: models.User,
@@ -112,7 +118,7 @@ router.get('/get-employee/:id', async function (req, res) {
             include: [
                 {
                     model: models.user_role,
-                    as: "role"
+                    as: "roles"
                 },
                 {
                     model: models.User,
@@ -219,6 +225,13 @@ router.get('/search-employee', async function (req, res) {
         return REST.success(res, { employees, totalItems: count, totalPages, currentPage: page }, 'Employees fetched successfully');
     } catch (error) {
         return REST.error(res, error.message, 500)
+    }
+})
+router.put('/update_role/:emplyoeeId', async function(req, res) {
+    try {
+        
+    } catch (error) {
+        
     }
 })
 module.exports = router;
