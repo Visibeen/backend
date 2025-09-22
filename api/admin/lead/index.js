@@ -86,7 +86,13 @@ router.get('/get-leads', async function (req, res) {
                 },
                 {
                     model: models.employee,
-                    as: "employeeDetails"
+                    as: "employeeDetails",
+                    include: [
+                        {
+                            model: models.user_role,
+                            as: "role"
+                        }
+                    ]
                 }
             ],
             order: [['created_at', 'DESC']],

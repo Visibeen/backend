@@ -17,6 +17,8 @@ const Payment = require('./payment.js')(sequelize, Sequelize.DataTypes);
 const employee = require('./employee.js')(sequelize, Sequelize.DataTypes);
 const lead = require('./lead.js')(sequelize, Sequelize.DataTypes);
 const meeting = require('./meeting.js')(sequelize, Sequelize.DataTypes);
+const attendence = require('./attendence.js')(sequelize, Sequelize.DataTypes);
+const employee_role = require('./employee_role.js')(sequelize, Sequelize.DataTypes);
 
 // user and bussiness account relationship
 business_account.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
@@ -79,14 +81,23 @@ User.hasMany(lead, { foreignKey: 'user_id', as: "leedDetails" })
 lead.belongsTo(employee, { foreignKey: "employee_id", as: "employeeDetails" })
 employee.hasMany(lead, { foreignKey: "employee_id", as: "leadDetails" })
 // employee and user role relationship
-employee.belongsTo(user_role, { foreignKey: "role_id", as: "role" })
-user_role.hasMany(employee, { foreignKey: "role_id", as: "employeeDetails" })
+// employee.belongsTo(user_role, { foreignKey: "role_id", as: "role" })
+// user_role.hasMany(employee, { foreignKey: "role_id", as: "employeeDetails" })
 
 employee.belongsTo(User, { foreignKey: "report_to", as: "reportby" })
 User.hasMany(employee, { foreignKey: "report_to", as: "employeeDetail" })
 
 User.belongsTo(user_role, { foreignKey: "role_id", as: "roles" })
 user_role.hasMany(User, { foreignKey: "role_id", as: "userDetails" })
+
+ employee.belongsToMany(user_role, {
+    through: employee_role,
+    foreignKey: 'employee_id',
+    otherKey: 'role_id',
+    as: 'roles' 
+  });
+
+ 
 
 module.exports = db;
 db.User = User;
@@ -103,7 +114,9 @@ db.gmb_profile_socre = gmb_profile_socre;
 db.Payment = Payment;
 db.employee = employee;
 db.lead = lead;
-db.meeting = meeting
+db.meeting = meeting;
+db.attendence = attendence;
+db.employee_role = employee_role
 
 
 Object.keys(db).forEach(modelName => {

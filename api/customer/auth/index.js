@@ -231,7 +231,7 @@ router.post('/google-login', async function (req, res) {
 			await models.User.update({
 				login_date: new Date(),
 				google_access_token: accessToken,
-				has_gmb_access: gmbCheck.hasGMBAccess,
+				// has_gmb_access: gmbCheck.hasGMBAccess,
 				last_login: new Date()
 			}, { where: { id: user.id } });
 
