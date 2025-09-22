@@ -28,14 +28,15 @@ router.post('/add-employee', async function (req, res) {
     try {
         const validationRules = {
             role_id: "required|array",
+            page: 'required|array',
+            'page.*.page_id': 'required|integer',
         };
         const validator = make(req.body, validationRules);
         if (!validator.validate()) {
             return REST.error(res, validator.errors().all(), 422);
         }
-
-        let employeeRecord = await models.sequelize.transaction(async (transaction) => {
-            let employeeData = await models.employee.create({
+        const employeeRecord = await models.sequelize.transaction(async (transaction) => {
+            const employeeData = await models.employee.create({
                 user_id: cUser.id,
                 report_to: req.body.report_to,
                 email: req.body.email,
@@ -72,6 +73,14 @@ router.post('/add-employee', async function (req, res) {
                 role_id: roleId,
             }));
             await models.employee_role.bulkCreate(employeeRoleData, { transaction });
+            const pages = req.body.page;
+            for (const page of pages) {
+                const permissionData = {
+                    user_id: employeeData.user_id, 
+                    page_id: page.page_id
+                };
+                await models.user_permission.create(permissionData, { transaction });
+            }
             return employeeData;
         });
         return REST.success(res, employeeRecord, 'Employee added successfully');
@@ -227,11 +236,30 @@ router.get('/search-employee', async function (req, res) {
         return REST.error(res, error.message, 500)
     }
 })
-router.put('/update_role/:emplyoeeId', async function(req, res) {
+router.put('/update_role/:employeeId', async function (req, res) {
     try {
-        
+        const employeeId = req.params.employeeId;
+        const newRoleIds = req.body.role_ids;
+        if (!Array.isArray(newRoleIds) || newRoleIds.length === 0) {
+            return REST.error(res, 'role_ids must be a non-empty array', 400);
+        }
+
+        const employee = await models.employee.findByPk(employeeId);
+        if (!employee) {
+            return REST.error(res, 'Employee not found', 404);
+        }
+
+        const roles = await models.user_role.findAll({
+            where: { id: newRoleIds }
+        });
+        if (roles.length !== newRoleIds.length) {
+            return REST.error(res, 'One or more roles are invalid', 400);
+        }
+        await employee.setRoles(newRoleIds);
+        return REST.success(res, null, 'Employee roles updated successfully');
     } catch (error) {
-        
+        return REST.error(res, error.message || 'Server error', 500);
     }
-})
+});
+
 module.exports = router;
