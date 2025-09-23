@@ -65,6 +65,7 @@ app.group('/api', (router) => {
 			groupRouter.use('/leads', require('./api/admin/lead/index'))
 			groupRouter.use('/meeting', require('./api/admin/meeting/index'))
 			groupRouter.use('/attendence', require('./api/admin/attendence/index'))
+			groupRouter.use('/routes', require('./api/admin/admin_routes/index'))
 		})
 	});
 });
