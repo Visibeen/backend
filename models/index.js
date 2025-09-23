@@ -19,6 +19,8 @@ const lead = require('./lead.js')(sequelize, Sequelize.DataTypes);
 const meeting = require('./meeting.js')(sequelize, Sequelize.DataTypes);
 const attendence = require('./attendence.js')(sequelize, Sequelize.DataTypes);
 const employee_role = require('./employee_role.js')(sequelize, Sequelize.DataTypes);
+const admin_routes = require('./admin_routes.js')(sequelize, Sequelize.DataTypes);
+const user_permission = require('./user_permission.js')(sequelize, Sequelize.DataTypes);
 
 // user and bussiness account relationship
 business_account.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
@@ -90,14 +92,9 @@ User.hasMany(employee, { foreignKey: "report_to", as: "employeeDetail" })
 User.belongsTo(user_role, { foreignKey: "role_id", as: "roles" })
 user_role.hasMany(User, { foreignKey: "role_id", as: "userDetails" })
 
- employee.belongsToMany(user_role, {
-    through: employee_role,
-    foreignKey: 'employee_id',
-    otherKey: 'role_id',
-    as: 'roles' 
-  });
+employee.belongsToMany(user_role, { through: employee_role, foreignKey: 'employee_id', otherKey: 'role_id', as: 'roles' });
 
- 
+
 
 module.exports = db;
 db.User = User;
@@ -117,6 +114,8 @@ db.lead = lead;
 db.meeting = meeting;
 db.attendence = attendence;
 db.employee_role = employee_role
+db.admin_routes = admin_routes
+db.user_permission = user_permission
 
 
 Object.keys(db).forEach(modelName => {
