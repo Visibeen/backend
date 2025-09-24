@@ -93,8 +93,12 @@ User.belongsTo(user_role, { foreignKey: "role_id", as: "roles" })
 user_role.hasMany(User, { foreignKey: "role_id", as: "userDetails" })
 
 employee.belongsToMany(user_role, { through: employee_role, foreignKey: 'employee_id', otherKey: 'role_id', as: 'roles' });
-
-
+user_role.belongsToMany(employee, {
+    through: 'employee_role',
+    foreignKey: 'role_id',
+    otherKey: 'employee_id',
+    as: 'employees'          
+});
 
 module.exports = db;
 db.User = User;
