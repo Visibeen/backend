@@ -27,24 +27,12 @@ const { log } = require('console');
 router.post('/add-lead', async function (req, res) {
     const cUser = req.body.current_user
     try {
-        const validationRules = {
-            email: 'required|email',
-            business_name: 'required|string',
-            category: 'required|string',
-            website: 'required|string',
-            first_name: 'required|string',
-            last_name: 'required|string',
-            contact_email: 'required|email',
-            phone_number: 'required|string',
-        };
-        const validator = make(req.body, validationRules);
-        if (!validator.validate()) {
-            return REST.error(res, validator.errors().all(), 422);
-        }
         let leadRecord = await models.sequelize.transaction(async (transaction) => {
             let leadData = await models.lead.create({
                 user_id: cUser.id,
                 employee_id: req.body.employee_id,
+                contact_person: req.body.contact_person,
+                lead_source: req.body.lead_source,
                 business_name: req.body.business_name,
                 category: req.body.category,
                 email: req.body.email,
@@ -63,6 +51,10 @@ router.post('/add-lead', async function (req, res) {
                 zip_code: req.body.zip_code,
                 country: req.body.country,
                 comment: req.body.comment,
+                is_website_service: req.body.is_website_service,
+                is_gmb_services: req.body.is_gmb_services,
+                is_smo_services: req.body.is_smo_services,
+                is_other_services: req.body.is_other_services,
                 created_by: cUser.id
             }
                 , { transaction });
@@ -82,7 +74,7 @@ router.get('/get-leads', async function (req, res) {
             include: [
                 {
                     model: models.User,
-                    as: "userDetails"
+                    as: "userDetails",
                 },
                 {
                     model: models.employee,
@@ -197,6 +189,33 @@ router.delete('/delete-leads/:id', async function (req, res) {
             await models.lead.destroy({ where: { id: leadId }, transaction });
         });
         return REST.success(res, {}, 'Lead deleted successfully');
+    } catch (error) {
+        return REST.error(res, error.message, 500)
+    }
+})
+router.get('/search-leads', async function (req, res) {
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const offset = (page - 1) * pageSize;
+    try {
+        const { globleSearch } = req.query
+        if (!globleSearch) {
+            return REST.error(res, "Search term is required", 400);
+        }
+        const { count, rows: leads } = await models.lead.findAndCountAll({
+            where: {
+                [Op.or]: [
+                    { business_name: { [Op.like]: `%${globleSearch}%` } },
+                    { lead_source: { [Op.like]: `%${globleSearch}%` } },
+                    { status: { [Op.like]: `%${globleSearch}%` } },
+                ]
+            },
+            order: [["id", "DESC"]],
+            limit: pageSize,
+            offset: offset
+        })
+        const totalPages = Math.ceil(count / pageSize);
+        return REST.success(res, { leads, totalItems: count, totalPages, currentPage: page }, 'Leads fetched successfully');
     } catch (error) {
         return REST.error(res, error.message, 500)
     }

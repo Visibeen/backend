@@ -24,6 +24,9 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE'
     },
+    role_id:{
+      type:DataTypes.INTEGER
+    },
     report_to: {
       type: DataTypes.BIGINT,
       allowNull: false,
