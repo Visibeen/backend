@@ -26,7 +26,6 @@ module.exports = (sequelize, DataTypes) => {
     },
     employee_id: {
       type: DataTypes.BIGINT,
-      allowNull: false,
       references: {
         model: Employee,
         key: 'id',
@@ -102,7 +101,6 @@ module.exports = (sequelize, DataTypes) => {
     },
     status: {
       type: DataTypes.BOOLEAN,
-      defaultValue: true,
     },
     is_website_service: {
       type: DataTypes.BOOLEAN,

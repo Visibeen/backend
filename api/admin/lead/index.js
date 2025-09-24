@@ -32,6 +32,7 @@ router.post('/add-lead', async function (req, res) {
                 user_id: cUser.id,
                 employee_id: req.body.employee_id,
                 contact_person: req.body.contact_person,
+                status:req.body.status,
                 lead_source: req.body.lead_source,
                 business_name: req.body.business_name,
                 category: req.body.category,
