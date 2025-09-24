@@ -38,6 +38,7 @@ router.post('/add-employee', async function (req, res) {
         const employeeRecord = await models.sequelize.transaction(async (transaction) => {
             const employeeData = await models.employee.create({
                 user_id: cUser.id,
+                role_id:req.body.role_id,
                 report_to: req.body.report_to,
                 email: req.body.email,
                 employee_code: req.body.employee_code,
@@ -76,7 +77,7 @@ router.post('/add-employee', async function (req, res) {
             const pages = req.body.page;
             for (const page of pages) {
                 const permissionData = {
-                    user_id: employeeData.user_id, 
+                    user_id: employeeData.user_id,
                     page_id: page.page_id
                 };
                 await models.user_permission.create(permissionData, { transaction });
@@ -261,5 +262,17 @@ router.put('/update_role/:employeeId', async function (req, res) {
         return REST.error(res, error.message || 'Server error', 500);
     }
 });
-
+router.get('/get-bdm', async function (req, res) {
+    try {
+        const data = await models.employee.findAll({
+            where: {
+                role_id: 5
+            },
+            order: [["id", "DESC"]]
+        })
+        return REST.success(res, data, 'BDM Get Successfully');
+    } catch (error) {
+        return REST.error(res, error.message || 'Server error', 500);
+    }
+})
 module.exports = router;

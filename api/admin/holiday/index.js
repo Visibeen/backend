@@ -80,6 +80,8 @@ router.get("/get-all-holidays", async function (req, res) {
         });
         return REST.success(res, holidays, "Holidays retrieved successfully");
     } catch (error) {
+        console.log(error, "error");
+        
         return REST.error(res, "Failed to retrieve holidays", 500);
     }
 });
