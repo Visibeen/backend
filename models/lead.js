@@ -38,6 +38,12 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
+    contact_person:{
+      type:DataTypes.STRING
+    },
+    lead_source:{
+      type:DataTypes.STRING
+    },
     business_name: {
       type: DataTypes.STRING,
     },
@@ -100,19 +106,15 @@ module.exports = (sequelize, DataTypes) => {
     },
     is_website_service: {
       type: DataTypes.BOOLEAN,
-      defaultValue: false,
     },
     is_gmb_services: {
       type: DataTypes.BOOLEAN,
-      defaultValue: false,
     },
     is_smo_services: {
       type: DataTypes.BOOLEAN,
-      defaultValue: false,
     },
     is_other_services: {
       type: DataTypes.BOOLEAN,
-      defaultValue: false,
     },
     is_deleted: {
       type: DataTypes.DATE,
