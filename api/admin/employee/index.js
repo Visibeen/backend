@@ -27,9 +27,7 @@ router.post('/add-employee', async function (req, res) {
     const cUser = req.body.current_user;
     try {
         const validationRules = {
-            role_id: "required|array",
-            page: 'required|array',
-            'page.*.page_id': 'required|integer',
+            role_id: "required|integer",
         };
         const validator = make(req.body, validationRules);
         if (!validator.validate()) {
@@ -38,7 +36,7 @@ router.post('/add-employee', async function (req, res) {
         const employeeRecord = await models.sequelize.transaction(async (transaction) => {
             const employeeData = await models.employee.create({
                 user_id: cUser.id,
-                role_id:req.body.role_id,
+                role_id: req.body.role_id,
                 report_to: req.body.report_to,
                 email: req.body.email,
                 employee_code: req.body.employee_code,
@@ -68,20 +66,20 @@ router.post('/add-employee', async function (req, res) {
                 current_country: req.body.current_country,
             }, { transaction });
 
-            const roleIds = req.body.role_id;
-            const employeeRoleData = roleIds.map(roleId => ({
-                employee_id: employeeData.id,
-                role_id: roleId,
-            }));
-            await models.employee_role.bulkCreate(employeeRoleData, { transaction });
-            const pages = req.body.page;
-            for (const page of pages) {
-                const permissionData = {
-                    user_id: employeeData.user_id,
-                    page_id: page.page_id
-                };
-                await models.user_permission.create(permissionData, { transaction });
-            }
+            // const roleIds = req.body.role_id;
+            // const employeeRoleData = roleIds.map(roleId => ({
+            //     employee_id: employeeData.id,
+            //     role_id: roleId,
+            // }));
+            // await models.employee_role.bulkCreate(employeeRoleData, { transaction });
+            // const pages = req.body.page;
+            // for (const page of pages) {
+            //     const permissionData = {
+            //         user_id: employeeData.user_id,
+            //         page_id: page.page_id
+            //     };
+            //     await models.user_permission.create(permissionData, { transaction });
+            // }
             return employeeData;
         });
         return REST.success(res, employeeRecord, 'Employee added successfully');
@@ -98,7 +96,7 @@ router.get('/get-employees', async function (req, res) {
             include: [
                 {
                     model: models.user_role,
-                    as: "roles"
+                    as: "role"
                 },
                 {
                     model: models.User,
@@ -128,7 +126,7 @@ router.get('/get-employee/:id', async function (req, res) {
             include: [
                 {
                     model: models.user_role,
-                    as: "roles"
+                    as: "role"
                 },
                 {
                     model: models.User,
