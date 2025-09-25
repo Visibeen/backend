@@ -17,13 +17,19 @@ global.constants = require("./constants/index");
 const { initSocket } = require('./socket');
 const app = express();
 
-app.use(
-	cors({
-		origin: function (origin, callback) {
-			callback(null, true);
-		},
-	})
-);
+// app.use(
+// 	cors({
+// 		origin: function (origin, callback) {
+// 			callback(null, true);
+// 		},
+// 	})
+// );
+app.use(cors({
+    origin: ['http://localhost:3000', 'https://yourdomain.com'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Google-API-Key']
+}));
 
 app.options("*", cors());
 app.use(express.json())
