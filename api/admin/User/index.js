@@ -130,6 +130,39 @@ router.put('/profile-update/:id', async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 })
-
+router.post('/change-password', async function (req, res) {
+    try {
+        const data = req.body;
+        const rules = {
+            oldPassword: "required|string",
+            newPassword: "required|string",
+            confirmPassword: "required|same:newPassword",
+        };
+        const validator = make(data, rules);
+        if (!validator.validate()) {
+            return REST.error(res, validator.errors().all(), 422);
+        }
+        const cUser = req.body.current_user
+        const findUser = await models.User.findOne({ where: { id: cUser.id } });
+        if (findUser) {
+            const passwordMatch = await compare(data.oldPassword, findUser.password);
+            if (passwordMatch) {
+                const hashedNewPassword = await gen(data.newPassword);
+                await models.User.update(
+                    { password: hashedNewPassword },
+                    { where: { id: cUser.id } }
+                );
+                return REST.success(res, 'Password changed successfully');
+            } else {
+                return REST.error(res, 'Old password is incorrect', 422);
+            }
+        } else {
+            return REST.error(res, 'User not found', 404);
+        }
+    } catch (error) {
+        console.log(error, "error")
+        return REST.error(res, error.message, 500);
+    }
+});
 
 module.exports = router;

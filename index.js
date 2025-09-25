@@ -25,10 +25,10 @@ const app = express();
 // 	})
 // );
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://yourdomain.com'],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Google-API-Key']
+	origin: ['http://localhost:3000', 'https://yourdomain.com'],
+	credentials: true,
+	methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+	allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Google-API-Key']
 }));
 
 app.options("*", cors());
@@ -64,15 +64,15 @@ app.group('/api', (router) => {
 			groupRouter.use('/payment', require('./api/customer/payment/index'));
 		});
 		groupV1.group('/admin', (groupRouter) => {
-			groupRouter.use('/auth', require('./api/admin/User/index'));
 			groupRouter.use('/role', require('./api/admin/user_role/index'))
 			groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([1])]);
+			groupRouter.use('/auth', require('./api/admin/User/index'));
 			groupRouter.use('/employee', require('./api/admin/employee/index'));
 			groupRouter.use('/leads', require('./api/admin/lead/index'))
 			groupRouter.use('/meeting', require('./api/admin/meeting/index'))
 			groupRouter.use('/attendence', require('./api/admin/attendence/index'))
 			groupRouter.use('/routes', require('./api/admin/admin_routes/index'))
-			groupRouter.use('/holiday',require('./api/admin/holiday/index'))
+			groupRouter.use('/holiday', require('./api/admin/holiday/index'))
 		})
 	});
 });
