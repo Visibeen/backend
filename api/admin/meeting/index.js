@@ -247,4 +247,43 @@ router.delete('/delete-meeting/:id', async function (req, res) {
         return REST.error(res, error.message, 500)
     }
 })
+router.get('/search-meetings', async function (req, res) {
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const offset = (page - 1) * pageSize;
+    try {
+        const { globleSearch } = req.query;
+        if (!globleSearch) {
+            return REST.error(res, "Search term is required", 400);
+        }
+        const { count, rows: meetings } = await models.meeting.findAndCountAll({
+            where: {
+                [Op.or]: [
+                    { '$leadDetails.business_name$': { [Op.like]: `%${globleSearch}%` } },
+                    { '$leadDetails.contact_person$': { [Op.like]: `%${globleSearch}%` } },
+                    { '$leadDetails.phone_number$': { [Op.like]: `%${globleSearch}%` } },
+                    { '$leadDetails.email$': { [Op.like]: `%${globleSearch}%` } },
+                    { '$leadDetails.status$': { [Op.like]: `%${globleSearch}%` } },
+                ]
+            },
+            include: [
+                {
+                    model: models.lead,
+                    as: "leadDetails"
+                }
+            ],
+            order: [["id", "DESC"]],
+            limit: pageSize,
+            offset: offset
+        });
+        const totalPages = Math.ceil(count / pageSize);
+        return REST.success(
+            res,
+            { meetings, totalItems: count, totalPages, currentPage: page },
+            'Meetings fetched successfully'
+        );
+    } catch (error) {
+        return REST.error(res, error.message, 500);
+    }
+});
 module.exports = router
