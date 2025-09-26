@@ -56,8 +56,8 @@ module.exports = (sequelize, DataTypes) => {
       onDelete: 'CASCADE',
     },
     status: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
+      type: DataTypes.STRING,
+      defaultValue:"pending"
     },
     comment: {
       type: DataTypes.STRING,
@@ -75,7 +75,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
     },
     meeting_with: {
-      type: DataTypes.STRING,
+      type: DataTypes.BIGINT,
     },
     lat: {
       type: DataTypes.STRING,

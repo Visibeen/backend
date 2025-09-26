@@ -21,6 +21,7 @@ const attendence = require('./attendence.js')(sequelize, Sequelize.DataTypes);
 const employee_role = require('./employee_role.js')(sequelize, Sequelize.DataTypes);
 const admin_routes = require('./admin_routes.js')(sequelize, Sequelize.DataTypes);
 const user_permission = require('./user_permission.js')(sequelize, Sequelize.DataTypes);
+const user_activity = require('./user_activity.js')(sequelize, Sequelize.DataTypes);
 
 // user and bussiness account relationship
 business_account.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
@@ -99,6 +100,14 @@ user_role.belongsToMany(employee, {
     otherKey: 'employee_id',
     as: 'employees'          
 });
+lead.hasMany(user_activity, { foreignKey: "activity_id", as: "activityDetails" });
+user_activity.belongsTo(lead, { foreignKey: "activity_id", as: "lead" });
+
+// user activity and added by relationship
+User.hasMany(user_activity, { foreignKey: "added_by", as: "activitiesAdded" });
+user_activity.belongsTo(User, { foreignKey: "added_by", as: "addedby" });
+
+
 
 module.exports = db;
 db.User = User;
@@ -119,7 +128,8 @@ db.meeting = meeting;
 db.attendence = attendence;
 db.employee_role = employee_role
 db.admin_routes = admin_routes
-db.user_permission = user_permission
+db.user_permission = user_permission;
+db.user_activity = user_activity
 
 
 Object.keys(db).forEach(modelName => {

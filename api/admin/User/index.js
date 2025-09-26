@@ -164,5 +164,16 @@ router.post('/change-password', async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-
+router.get('/get-admin', async function (req, res) {
+    try {
+        const data = await models.User.findAll({
+            where: {
+                role_id: 1
+            }
+        })
+        return REST.success(res, data, 'Get Admin Successfully.');
+    } catch (error) {
+        return REST.error(res, error.message, 500);
+    }
+})
 module.exports = router;
