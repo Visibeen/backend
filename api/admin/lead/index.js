@@ -32,7 +32,7 @@ router.post('/add-lead', async function (req, res) {
                 user_id: cUser.id,
                 employee_id: req.body.employee_id,
                 contact_person: req.body.contact_person,
-                status:req.body.status,
+                status: req.body.status,
                 lead_source: req.body.lead_source,
                 business_name: req.body.business_name,
                 category: req.body.category,
@@ -61,6 +61,15 @@ router.post('/add-lead', async function (req, res) {
                 , { transaction });
             return leadData;
         });
+        await models.user_activity.create({
+            user_id: cUser.id,
+            activity: 'Lead',
+            activity_id: leadRecord.id,
+            activity_type: 'Add Leads',
+            current_data: req.body,
+            added_by: cUser.id,
+            action: 'Add'
+        })
         return REST.success(res, leadRecord, 'Lead added successfully');
     } catch (error) {
         return REST.error(res, error.message, 500)
@@ -86,7 +95,19 @@ router.get('/get-leads', async function (req, res) {
                             as: "role"
                         }
                     ]
-                }
+                },
+                {
+                    model: models.user_activity,
+                    as: "activityDetails",
+                    include: [
+                        {
+                            model: models.User,
+                            as: "addedby",
+                            attributes:["id", "full_name"]
+                            
+                        }
+                    ]
+                },
             ],
             order: [['created_at', 'DESC']],
             limit: pageSize,
