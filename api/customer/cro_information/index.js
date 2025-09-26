@@ -21,28 +21,9 @@ const axios = require('axios');
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 */
 
-// create CRO information
 router.post("/create-cro-information", async function (req, res) {
     const cUser = req.body.current_user;
     try {
-        const rules = {
-            cro_employee_name: 'required|string',
-            seo_employee_name: 'required|string',
-            cro_category: 'required|string',
-            fa_account: 'required|string',
-            seo_post_period: 'required|string',
-            total_post: 'required|integer',
-            report_period: 'required|string',
-            client_status: 'required|string',
-            email: 'required|email',
-            password: 'required|string',
-            google_account: 'string',
-            location: 'string',
-        };
-        const validator = make(req.body, rules);
-        if (!validator.validate()) {
-            return REST.error(res, validator.errors().first(), 422);
-        }
         const findUser = await models.User.findOne({
             where: {
                 id: cUser.id,
@@ -76,7 +57,6 @@ router.post("/create-cro-information", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Get CRO information list
 router.get("/get-cro-information", async function (req, res) {
     try {
         const croInformation = await models.cro_information.findAll({
@@ -93,7 +73,6 @@ router.get("/get-cro-information", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Get CRO information by ID
 router.get("/get-cro-information/:id", async function (req, res) {
     try {
         const croInformation = await models.cro_information.findOne({
@@ -107,7 +86,6 @@ router.get("/get-cro-information/:id", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Update CRO information
 router.put("/update-cro-information/:id", async function (req, res) {
     const cUser = req.body.current_user;
     try {
@@ -124,7 +102,6 @@ router.put("/update-cro-information/:id", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Delete CRO information
 router.delete("/delete-cro-information/:id", async function (req, res) {
     const cUser = req.body.current_user;
     try {

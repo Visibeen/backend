@@ -21,7 +21,6 @@ const axios = require('axios');
 */
 
 
-// create  EDMS
 router.post("/create-edms", async function (req, res) {
     const cUser = req.body.current_user;
     try {
@@ -57,7 +56,6 @@ router.post("/create-edms", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 })
-// Get EDMS list
 router.get("/get-edms", async function (req, res) {
     try {
         const edmsList = await models.edms.findAll({
@@ -74,7 +72,6 @@ router.get("/get-edms", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Get EDMS by ID
 router.get("/get-edms/:id", async function (req, res) {
     try {
         const edms = await models.edms.findOne({
@@ -88,7 +85,6 @@ router.get("/get-edms/:id", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Update EDMS
 router.put("/update-edms/:id", async function (req, res) {
     const cUser = req.body.current_user;
     try {
@@ -116,7 +112,6 @@ router.put("/update-edms/:id", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Delete EDMS
 router.delete("/delete-edms/:id", async function (req, res) {
     const cUser = req.body.current_user;
     try {

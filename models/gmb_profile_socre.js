@@ -2,12 +2,13 @@
 const {
   Model
 } = require('sequelize');
+const User = require('./user');
 module.exports = (sequelize, DataTypes) => {
-  class gst_information extends Model {
+  class gmb_profile_socre extends Model {
     static associate(models) {
     }
   }
-  gst_information.init({
+  gmb_profile_socre.init({
     id: {
       type: DataTypes.BIGINT,
       primaryKey: true,
@@ -15,94 +16,101 @@ module.exports = (sequelize, DataTypes) => {
     },
     user_id: {
       type: DataTypes.BIGINT,
+      allowNull: false,
+      references: {
+        model: User,
+        key: 'id'
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'CASCADE'
     },
-    gst_details: {
+    account: {
       type: DataTypes.STRING,
     },
-    start_date: {
-      type: DataTypes.STRING
-    },
-    end_date: {
-      type: DataTypes.STRING
-    },
-    payment_details: {
+    location: {
       type: DataTypes.STRING,
     },
-    bank_name: {
+    verification: {
       type: DataTypes.STRING,
     },
-    cheque_number: {
+    business_name_contains_city: {
       type: DataTypes.STRING,
     },
-    payment_with_gst: {
+    address: {
       type: DataTypes.STRING,
     },
-    net_payment: {
+    phone_number: {
       type: DataTypes.STRING,
     },
-    gst: {
+    description_length: {
       type: DataTypes.STRING,
     },
-    advance: {
+    website_link: {
       type: DataTypes.STRING,
     },
-    pending: {
+    timings: {
       type: DataTypes.STRING,
     },
-    top_up_amount: {
+    labels: {
       type: DataTypes.STRING,
     },
-    net_sale: {
+    categories_primary: {
       type: DataTypes.STRING,
     },
-    emi_date: {
-      type: DataTypes.DATE,
-    },
-    emi_payment_per_month: {
+    categories_additional: {
       type: DataTypes.STRING,
     },
-    esc_amount_number: {
+    category_mentions_city: {
       type: DataTypes.STRING,
     },
-    esc_bank_name: {
+    social_media_attached: {
       type: DataTypes.STRING,
     },
-    esc_ifsc_code: {
+    appointments_link: {
       type: DataTypes.STRING,
     },
-    umrn_number: {
+    service_area: {
       type: DataTypes.STRING,
     },
-    contact_person: {
+    book_appointment: {
       type: DataTypes.STRING,
     },
-    contact_number: {
+    q_and_a_section_present: {
       type: DataTypes.STRING,
     },
-    alternative_contact_number: {
+    photos: {
+      type: DataTypes.STRING,
+    },
+    review_rating: {
+      type: DataTypes.STRING,
+    },
+    response_rate: {
+      type: DataTypes.STRING,
+    },
+    reviews_vs_competitors: {
+      type: DataTypes.STRING,
+    },
+    velocity_score: {
+      type: DataTypes.STRING,
+    },
+    gmb_feed: {
+      type: DataTypes.STRING,
+    },
+    total_score: {
       type: DataTypes.STRING,
     },
     status: {
-      type: DataTypes.STRING,
-      defaultValue: 'active'
+      type: DataTypes.BOOLEAN,
+      defaultValue: true
     },
-    gst_name:{
-      type: DataTypes.STRING,
-    },
-    gst_address:{
-      type: DataTypes.TEXT,
-    },
-    supply_state:{
-      type: DataTypes.STRING,
-    }
   }, {
     sequelize,
-    modelName: 'gst_information',
-    tableName: 'gst_informations',
+    modelName: 'gmb_profile_socre',
+    tableName: 'gmb_profile_socres',
     underscored: true,
     timestamps: true,
     paranoid: false,
     freezeTableName: true
   });
-  return gst_information;
+  return gmb_profile_socre;
 };

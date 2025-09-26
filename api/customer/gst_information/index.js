@@ -19,21 +19,9 @@ const axios = require('axios');
 |                                                 GST Information Management Routes
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 */
-// create GST information
 router.post("/create-gst-information", async function (req, res) {
     const cUser = req.body.current_user;
     try {
-        const rules = {
-            gst_details: 'required|string',
-            payment_details: 'required|string',
-            bank_name: 'required|string',
-            payment_with_gst: 'required|email',
-            net_payment: 'required|string',
-        };
-        const validator = make(req.body, rules);
-        if (!validator.validate()) {
-            return REST.error(res, validator.errors().first(), 422);
-        }
         const findUser = await models.User.findOne({
             where: {
                 id: cUser.id,
@@ -46,9 +34,11 @@ router.post("/create-gst-information", async function (req, res) {
             let data = await models.gst_information.create({
                 user_id: cUser.id,
                 gst_details: req.body.gst_details,
+                start_date:req.body.start_date,
+                end_date:req.body.end_date,
                 payment_details: req.body.payment_details,
                 bank_name: req.body.bank_name,
-                cheque_number:req.body.cheque_number,
+                cheque_number: req.body.cheque_number,
                 payment_with_gst: req.body.payment_with_gst,
                 net_payment: req.body.net_payment,
                 gst: req.body.gst,
@@ -65,6 +55,9 @@ router.post("/create-gst-information", async function (req, res) {
                 contact_person: req.body.contact_person,
                 contact_number: req.body.contact_number,
                 alternative_contact_number: req.body.alternative_contact_number,
+                gst_name: req.body.gst_name,
+                gst_address: req.body.gst_address,
+                supply_state: req.body.supply_state,    
             }, { transaction });
             return data;
         });
@@ -73,7 +66,6 @@ router.post("/create-gst-information", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Get GST information list
 router.get("/get-gst-information", async function (req, res) {
     try {
         const gstInformation = await models.gst_information.findAll({
@@ -91,7 +83,6 @@ router.get("/get-gst-information", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Get GST information by ID
 router.get("/get-gst-information/:id", async function (req, res) {
     try {
         const gstInformation = await models.gst_information.findOne({
@@ -112,7 +103,6 @@ router.get("/get-gst-information/:id", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Update GST information
 router.put("/update-gst-information/:id", async function (req, res) {
     const cUser = req.body.current_user;
     try {
@@ -129,7 +119,6 @@ router.put("/update-gst-information/:id", async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
-// Delete GST information
 router.delete("/delete-gst-information/:id", async function (req, res) {
     const cUser = req.body.current_user;
     try {

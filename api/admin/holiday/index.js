@@ -23,7 +23,7 @@ router.post("/create-holiday", async function (req, res) {
         const rules = {
             name: 'required|string',
             date: 'required|string',
-            template: 'required|integer',
+            template: 'required|string',
         };
         const validator = make(req.body, rules);
         if (!validator.validate()) {
@@ -80,6 +80,8 @@ router.get("/get-all-holidays", async function (req, res) {
         });
         return REST.success(res, holidays, "Holidays retrieved successfully");
     } catch (error) {
+        console.log(error, "error");
+        
         return REST.error(res, "Failed to retrieve holidays", 500);
     }
 });

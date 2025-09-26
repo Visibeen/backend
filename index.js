@@ -25,13 +25,13 @@ app.use(
 	})
 );
 
+
 app.options("*", cors());
 app.use(express.json())
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(fileUpload({ createParentPath: true, limits: { fileSize: config.limit_file_size } }));
 
 const middleware = require("./utils/middleware")
-
 app.get('/health', (req, res) => {
 	res.status(200).send('OK');
 });
@@ -45,7 +45,7 @@ app.group('/api', (router) => {
 		groupV1.use('/errors', require("./api/errors"));
 		groupV1.group('/customer', (groupRouter) => {
 			groupRouter.use('/auth', require('./api/customer/auth/index'));
-			groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([3, 1])]);
+			groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([3])]);
 			groupRouter.use('/profile', require('./api/customer/profile/index'));
 			groupRouter.use('/account', require('./api/customer/business_account/index'));
 			groupRouter.use('/contact-us', require('./api/customer/contact_us/index'))
@@ -55,7 +55,20 @@ app.group('/api', (router) => {
 			groupRouter.use('/gst-information', require('./api/customer/gst_information/index'));
 			groupRouter.use('/cro-information', require('./api/customer/cro_information/index'));
 			groupRouter.use('/holiday', require('./api/customer/holiday/index'));
+			groupRouter.use('/gmb-profile-socre', require('./api/customer/gmb_profile_socre/index'));
+			groupRouter.use('/payment', require('./api/customer/payment/index'));
 		});
+		groupV1.group('/admin', (groupRouter) => {
+			groupRouter.use('/role', require('./api/admin/user_role/index'))
+			groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([1])]);
+			groupRouter.use('/auth', require('./api/admin/User/index'));
+			groupRouter.use('/employee', require('./api/admin/employee/index'));
+			groupRouter.use('/leads', require('./api/admin/lead/index'))
+			groupRouter.use('/meeting', require('./api/admin/meeting/index'))
+			groupRouter.use('/attendence', require('./api/admin/attendence/index'))
+			groupRouter.use('/routes', require('./api/admin/admin_routes/index'))
+			groupRouter.use('/holiday', require('./api/admin/holiday/index'))
+		})
 	});
 });
 

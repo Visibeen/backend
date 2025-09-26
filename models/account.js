@@ -16,6 +16,9 @@ module.exports = (sequelize, DataTypes) => {
     user_id: {
       type: DataTypes.BIGINT,
     },
+    name:{
+      type: DataTypes.STRING,
+    },
     image: {
       type: DataTypes.TEXT,
     },
@@ -30,6 +33,21 @@ module.exports = (sequelize, DataTypes) => {
     },
     end_date: {
       type: DataTypes.DATE,
+    },
+    cro_employee_name: {
+      type: DataTypes.STRING
+    },
+    seo_employee_name: {
+      type: DataTypes.STRING
+    },
+    password: {
+      type: DataTypes.STRING
+    },
+    contact_person: {
+      type: DataTypes.STRING
+    },
+    contact_number: {
+      type: DataTypes.STRING
     },
     email: {
       type: DataTypes.STRING,

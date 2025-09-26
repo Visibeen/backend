@@ -86,7 +86,7 @@ router.post('/signUp', async function (req, res) {
 		const user_uid = 'UID_' + support.generateRandomNumber();
 		const userPayload = {
 			full_name,
-			role: 3,
+			role_id: 3,
 			email,
 			phone_number,
 			password: hashedPassword,
@@ -121,7 +121,7 @@ router.post('/login', async function (req, res) {
 				const newUser = await models.sequelize.transaction(async (transaction) => {
 					return await models.User.create(userPayload, { transaction });
 				});
-				const token = auth.longTermToken({ userid: newUser.id }, config.USER_SECRET);
+				const token = auth.shortTermToken({ userid: newUser.id }, config.USER_SECRET);
 				await models.User.update({
 					token: token,
 					login_date: new Date()
@@ -129,7 +129,7 @@ router.post('/login', async function (req, res) {
 				const finalUser = await models.User.findOne({ where: { id: newUser.id } });
 				return REST.success(res, finalUser, 'Login successful.');
 			} else {
-				const token1 = auth.longTermToken({ userid: user.id }, config.USER_SECRET);
+				const token1 = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
 				await models.User.update({
 					token: token1,
 					login_date: new Date()
@@ -218,31 +218,27 @@ router.post('/google-login', async function (req, res) {
 				full_name: full_name || email.split('@')[0],
 				email,
 				user_uid,
-				role: 3,
+				role_id: 3,
 				account_type: 'google',
 				status: constants.USER.STATUSES.ACTIVE,
 				google_access_token: accessToken,
 				has_gmb_access: gmbCheck.hasGMBAccess
 			};
-
 			user = await models.sequelize.transaction(async (transaction) => {
 				return await models.User.create(userPayload, { transaction });
 			});
 		} else {
 			await models.User.update({
+				login_date: new Date(),
 				google_access_token: accessToken,
-				has_gmb_access: gmbCheck.hasGMBAccess,
+				// has_gmb_access: gmbCheck.hasGMBAccess,
 				last_login: new Date()
 			}, { where: { id: user.id } });
 
 			user = await models.User.findOne({ where: { id: user.id } });
 		}
-		const token = auth.longTermToken({ userid: user.id }, config.USER_SECRET);
-		await models.User.update({
-			token: token,
-			login_date: new Date()
-		}, { where: { id: user.id } });
-
+		const token = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
+		await models.User.update({ token }, { where: { id: user.id } });
 		const finalUser = await models.User.findOne({ where: { id: user.id } });
 		return REST.success(res, {
 			user: finalUser,
@@ -251,7 +247,7 @@ router.post('/google-login', async function (req, res) {
 		}, 'Login successful.');
 
 	} catch (error) {
-		return REST.error(res, error.message, 500);
+		return REST.error(res, error.message || 'Server error', 500);
 	}
 });
 router.post('/forget_password', async function (req, res) {
@@ -374,5 +370,35 @@ router.post('/update_Password', async function (req, res) {
 		return REST.error(res, error.message, 500);
 	}
 });
+router.post('/logout', async (req, res) => {
+	try {
+		const token = req.headers.authorization;
+		if (!token) {
+			return REST.error(res, 'Token is required', 401);
+		}
+		const data = await models.User.update({ token: null, google_access_token: null }, { where: { token } });
+		if (data === 0) {
+			return REST.error(res, 'Invalid token or user not found', 401);
+		}
+		return REST.success(res, null, 'Logout successful');
+	} catch (error) {
+		return REST.error(res, 'Internal server error', 500);
+	}
+});
+router.delete('/delete-user/:id', async function (req, res) {
+	const cUser = req.body.current_user;
+	try {
+		const userId = req.params.id;
+		const user = await models.User.findOne({ where: { id: userId } });
+		if (!user) {
+			return REST.error(res, 'User not found', 404);
+		}
+		await models.User.destroy({ where: { id: userId } });
+		return REST.success(res, null, 'User deleted successfully');
+	} catch (error) {
+		return REST.error(res, error.message || 'Server error', 500);
+
+	}
+})
 
 module.exports = router

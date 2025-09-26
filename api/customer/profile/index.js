@@ -12,6 +12,7 @@ var REST = require("../../../utils/REST");
 const { compare } = require('../../../utils/hash');
 const auth = require('../../../utils/auth');
 const axios = require('axios');
+const puppeteer = require('puppeteer');
 
 
 /*
@@ -148,26 +149,29 @@ router.get('/getGmbMedia/:locationId', async function (req, res) {
 		return REST.error(res, error.message, error.response?.status || 500);
 	}
 });
-router.get('/getLastFeed/:locationId', async function (req, res) {
+router.get('/getLastFeed/:accountId/:locationId', async function (req, res) {
 	try {
 		const { googleAccessToken } = req.query;
-		const { locationId } = req.params;
+		const { locationId, accountId } = req.params;
 		if (!googleAccessToken || typeof googleAccessToken !== 'string' || !googleAccessToken.trim()) {
 			return REST.error(res, 'Google access token is required.', 400);
 		}
 		if (!locationId) {
 			return REST.error(res, 'Location ID is required.', 400);
 		}
+		if (!accountId) {
+			return REST.error(res, 'Account ID is required.', 400);
+		}
+
 		const token = googleAccessToken.trim();
-		console.log('Using access token:', JSON.stringify(token));
-		const url = `https://mybusiness.googleapis.com/v4/${encodeURIComponent(locationId)}/localPosts`;
+		const url = `https://mybusiness.googleapis.com/v4/accounts/${encodeURIComponent(accountId)}/locations/${encodeURIComponent(locationId)}/localPosts`;
 		const response = await axios.get(url, {
 			headers: {
-				'Authorization': `Bearer ${token}`,
+				Authorization: `Bearer ${token}`,
 				'Content-Type': 'application/json',
 			},
 			params: {
-				pageSize: 100,
+				pageSize: 10,
 			},
 		});
 		const posts = response.data?.localPosts;
@@ -179,7 +183,7 @@ router.get('/getLastFeed/:locationId', async function (req, res) {
 	} catch (error) {
 		return REST.error(res, error.message, error.response?.status || 500);
 	}
-});
+});;
 router.get('/getGmbInsights/:locationId', async function (req, res) {
 	try {
 		const { googleAccessToken } = req.query;
@@ -191,7 +195,6 @@ router.get('/getGmbInsights/:locationId', async function (req, res) {
 			return REST.error(res, 'Location ID is required.', 400);
 		}
 		const token = googleAccessToken.trim();
-		console.log('Using access token:', JSON.stringify(token));
 		const url = `https://mybusiness.googleapis.com/v4/${encodeURIComponent(locationId)}/insights`;
 		const response = await axios.get(url, {
 			headers: {
@@ -277,7 +280,7 @@ router.get('/get-gmb-verifyAccount/:locationId', async function (req, res) {
 				'Content-Type': 'application/json',
 			},
 		});
-		
+
 		if (response?.data?.VoiceOfMerchantState) {
 			return REST.success(res, response.data.VoiceOfMerchantState, 'GMB Verification Account Fetched Successfully.');
 		} else {
@@ -288,5 +291,357 @@ router.get('/get-gmb-verifyAccount/:locationId', async function (req, res) {
 		return REST.error(res, error.response?.data?.error?.message || error.message, error.response?.status || 500);
 	}
 });
+router.patch('/gmb-notifications/:accountId', async function (req, res) {
+	try {
+		const { googleAccessToken } = req.query;
+		const { accountId } = req.params;
+		if (!googleAccessToken || typeof googleAccessToken !== 'string' || !googleAccessToken.trim()) {
+			return REST.error(res, 'Google access token is required.', 400);
+		}
+		if (!accountId) {
+			return REST.error(res, 'Account ID is required.', 400);
+		}
+
+		const token = googleAccessToken.trim();
+		const pubsubBody = {
+			pubsubTopic: "projects/myapi-430807/topics/gmb_notification"
+		};
+
+		const url = `https://mybusinessnotifications.googleapis.com/v1/accounts/${encodeURIComponent(accountId)}/notificationSetting?updateMask=pubsub_topic`;
+		const response = await axios.patch(url, pubsubBody, {
+			headers: {
+				'Authorization': `Bearer ${token}`,
+				'Content-Type': 'application/json',
+			}
+		});
+		return REST.success(res, response.data, 'Pub/Sub topic configured successfully.');
+	} catch (error) {
+		console.error('Pub/Sub setup error:', error?.response?.data || error.message);
+		return REST.error(res, error.message, error.response?.status || 500);
+	}
+});
+router.get('/get-gmb-products/:locationId', async function (req, res) {
+	try {
+		const { googleAccessToken } = req.query;
+		const { locationId } = req.params;
+		if (!googleAccessToken) {
+			return REST.error(res, 'Google access token is required.', 400);
+		}
+		if (!locationId) {
+			return REST.error(res, 'Location ID is required.', 400);
+		}
+		const token = googleAccessToken.trim();
+		const url = `https://mybusinessbusinessinformation.googleapis.com/v1/${encodeURIComponent(locationId)}/products`;
+		const response = await axios.get(url, {
+			headers: {
+				'Authorization': `Bearer ${token}`,
+				'Content-Type': 'application/json',
+			},
+			params: {
+				pageSize: 100,
+			},
+		});
+		const products = response.data?.products;
+		if (Array.isArray(products) && products.length > 0) {
+			return REST.success(res, products, 'GMB products found.');
+		} else {
+			return REST.error(res, 'No GMB products found.', 404);
+		}
+	} catch (error) {
+		return REST.error(res, error.message, error.response?.status || 500);
+
+	}
+})
+class BusinessCategoryScraper {
+	constructor() {
+		this.browser = null;
+	}
+	async initBrowser() {
+		if (!this.browser) {
+			this.browser = await puppeteer.launch({
+				headless: true,
+				args: [
+					'--no-sandbox',
+					'--disable-setuid-sandbox',
+					'--disable-dev-shm-usage',
+					'--disable-gpu',
+					'--disable-web-security',
+					'--disable-blink-features=AutomationControlled',
+				],
+			});
+		}
+		return this.browser;
+	}
+
+	async extractCategory(businessName) {
+		try {
+			const browser = await this.initBrowser();
+			const page = await browser.newPage();
+			await page.setUserAgent(
+				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+			);
+			await page.setViewport({ width: 1366, height: 768 });
+			await page.evaluateOnNewDocument(() => {
+				Object.defineProperty(navigator, 'webdriver', {
+					get: () => undefined,
+				});
+			});
+			const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(businessName)}`;
+			await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+			await new Promise(resolve => setTimeout(resolve, 4000));
+			const result = await page.evaluate(() => {
+				const panel = document.querySelector('#rhs, .kp-blk, .knowledge-panel');
+				if (!panel) return { businessName: '', categories: [] };
+				const name = document.querySelector('h1, .kp-header h1, .kno-ecr-pt')?.innerText?.trim() || '';
+				const elements = panel.querySelectorAll(
+					'[data-attrid="subtitle"], [data-attrid="kc:/local:merged-vertical-subtitle"]'
+				);
+				for (const el of elements) {
+					const text = el.innerText?.trim();
+					const cleaned = text.replace(/^\d+(\.\d+)?★?[\d,]*\s*Google reviews\s*/i, '').trim();
+					if (cleaned && / in /.test(cleaned)) {
+						return {
+							businessName: name,
+							categories: [cleaned],
+						};
+					}
+				}
+				return { businessName: name, categories: [] };
+			});
+			await page.close();
+			return result;
+		} catch (err) {
+			throw err;
+		}
+	}
+}
+const scraper = new BusinessCategoryScraper();
+router.get('/get-business-category', async (req, res) => {
+	try {
+		const { businessName } = req.query;
+		if (!businessName || typeof businessName !== 'string') {
+			return REST.error(res, '"businessName" is required.', 400);
+		}
+		const result = await scraper.extractCategory(businessName.trim());
+		if (result.categories.length > 0 && result.businessName) {
+			return REST.success(res, result, 'Business category found.');
+		} else {
+			return REST.error(res, 'No business category found.', 404);
+		}
+	} catch (error) {
+		return REST.error(res, error.message, 500);
+	}
+})
+router.get('/textsearch', async function (req, res) {
+	try {
+		const { query, lat, lng, radius } = req.query;
+		if (!query) return res.status(400).json({ error: 'Missing query' });
+
+		const centerLat = lat ? Number(lat) : undefined;
+		const centerLng = lng ? Number(lng) : undefined;
+		const radiusMeters = radius ? Number(radius) : 5000;
+		const body = {
+			textQuery: query,
+			locationBias: (centerLat && centerLng) ? {
+				circle: {
+					center: { latitude: centerLat, longitude: centerLng },
+					radius: radiusMeters
+				}
+			} : undefined,
+			maxResultCount: 20
+		};
+
+		const fieldMask = [
+			'places.id',
+			'places.displayName',
+			'places.formattedAddress',
+			'places.rating',
+			'places.userRatingCount',
+			'places.photos',
+			'places.websiteUri',
+			'places.nationalPhoneNumber',
+			'places.internationalPhoneNumber',
+			'places.businessStatus',
+			'places.primaryType',
+			'places.types',
+			'places.location',
+			'places.currentOpeningHours',
+			'places.regularOpeningHours',
+			'places.priceLevel',
+			'places.editorialSummary',
+			'places.reviews'
+		].join(',');
+
+		const response = await axios.post(
+			'https://places.googleapis.com/v1/places:searchText',
+			body,
+			{
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Goog-Api-Key': process.env.GOOGLE_API_KEY,
+					'X-Goog-FieldMask': fieldMask
+				},
+			}
+		);
+		const places = Array.isArray(response.data.places) ? response.data.places : [];
+		const results = places.map((place) => {
+			const result = {
+				placeId: place.id,
+				name: place.displayName?.text || place.name,
+				address: place.formattedAddress,
+				rating: place.rating,
+				userRatingCount: place.userRatingCount || 0,
+				types: place.types || [],
+				photoReference: place.photos?.[0]?.name || null,
+				photoCount: place.photos?.length || 0,
+				businessStatus: place.businessStatus,
+				websiteUri: place.websiteUri,
+				nationalPhoneNumber: place.nationalPhoneNumber,
+				internationalPhoneNumber: place.internationalPhoneNumber,
+				primaryType: place.primaryType,
+				latitude: place.location?.latitude,
+				longitude: place.location?.longitude,
+				openingHours: place.currentOpeningHours?.weekdayDescriptions || place.regularOpeningHours?.weekdayDescriptions || [],
+				priceLevel: place.priceLevel,
+				description: place.editorialSummary?.text
+			};
+			return result;
+		});
+		res.json({ results });
+	} catch (error) {
+		return REST.error(res, error.message, error.response?.status || 500);
+	}
+})
+router.get('/placesDetails', async function (req, res) {
+	try {
+		const { placeId } = req.query;
+		if (!placeId) {
+			return res.status(400).json({ error: 'Missing placeId' });
+		}
+		const fieldMask = [
+			'id',
+			'displayName',
+			'formattedAddress',
+			'rating',
+			'userRatingCount',
+			'photos',
+			'websiteUri',
+			'nationalPhoneNumber',
+			'internationalPhoneNumber',
+			'businessStatus',
+			'primaryType',
+			'types',
+			'location',
+			'currentOpeningHours',
+			'regularOpeningHours',
+			'priceLevel',
+			'editorialSummary',
+			'reviews'
+		].join(',');
+		const response = await axios.get(
+			`https://places.googleapis.com/v1/places/${placeId}`,
+			{
+				headers: {
+					'X-Goog-Api-Key': process.env.GOOGLE_API_KEY,
+					'X-Goog-FieldMask': fieldMask
+				},
+			}
+		);
+		const place = response.data;
+		const result = {
+			placeId: place.id,
+			name: place.displayName?.text || place.name,
+			address: place.formattedAddress,
+			rating: place.rating,
+			userRatingCount: place.userRatingCount || 0,
+			types: place.types || [],
+			photoReference: place.photos?.[0]?.name || null,
+			photoCount: place.photos?.length || 0,
+			businessStatus: place.businessStatus,
+			websiteUri: place.websiteUri,
+			nationalPhoneNumber: place.nationalPhoneNumber,
+			internationalPhoneNumber: place.internationalPhoneNumber,
+			primaryType: place.primaryType,
+			latitude: place.location?.latitude,
+			longitude: place.location?.longitude,
+			openingHours: place.currentOpeningHours?.weekdayDescriptions || place.regularOpeningHours?.weekdayDescriptions || [],
+			priceLevel: place.priceLevel,
+			description: place.editorialSummary?.text
+		};
+		res.json({ result });
+	} catch (error) {
+		return REST.error(res, error.message, error.response?.status || 500);
+	}
+})
+router.get('/getPlacesNearBy', async function (req, res) {
+	try {
+		const { location, radius, keyword } = req.query;
+		if (!location || !keyword) {
+			return res.status(400).json({ error: 'Missing location or keyword' });
+		}
+		const radiusMeters = radius ? Number(radius) : 1000;
+		const [lat, lng] = location.split(',').map(Number);
+		const body = {
+			textQuery: keyword,
+			locationBias: {
+				circle: {
+					center: { latitude: lat, longitude: lng },
+					radius: radiusMeters
+				}
+			},
+			maxResultCount: 20
+		};
+		const fieldMask = [
+			'places.id',
+			'places.displayName',
+			'places.formattedAddress',
+			'places.rating',
+			'places.userRatingCount',
+			'places.photos',
+			'places.websiteUri',
+			'places.nationalPhoneNumber',
+			'places.internationalPhoneNumber',
+			'places.businessStatus',
+			'places.primaryType',
+			'places.types',
+			'places.location'
+		].join(',');
+		const response = await axios.post(
+			'https://places.googleapis.com/v1/places:searchText',
+			body,
+			{
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Goog-Api-Key': process.env.GOOGLE_API_KEY,
+					'X-Goog-FieldMask': fieldMask
+				},
+			}
+		);
+		const places = Array.isArray(response.data.places) ? response.data.places : [];
+		const results = places.map((place) => ({
+			place_id: place.id,
+			name: place.displayName?.text || place.name,
+			formatted_address: place.formattedAddress,
+			vicinity: place.formattedAddress,
+			rating: place.rating,
+			user_ratings_total: place.userRatingCount,
+			types: place.types || [],
+			photos: place.photos ? [{ photo_reference: place.photos[0]?.name }] : [],
+			business_status: place.businessStatus,
+			geometry: {
+				location: {
+					lat: place.location?.latitude,
+					lng: place.location?.longitude
+				}
+			}
+		}));
+		res.json({ results, status: 'OK' });
+	} catch (error) {
+		return REST.error(res, error.message, error.response?.status || 500);
+	}
+})
+
+
+
 
 module.exports = router;
