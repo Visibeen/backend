@@ -35,7 +35,7 @@ router.post('/login', async function (req, res) {
         if (user) {
             const passwordMatch = await compare(data.password, user.password);
             if (passwordMatch) {
-                const token = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
+                const token = auth.longTermToken({ userid: user.id }, config.USER_SECRET);
                 await models.sequelize.transaction(async (transaction) => {
                     await models.User.update(
                         {
