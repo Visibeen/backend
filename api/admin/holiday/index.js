@@ -23,7 +23,7 @@ router.post("/create-holiday", async function (req, res) {
         const rules = {
             name: 'required|string',
             date: 'required|string',
-            template: 'required|integer',
+            template: 'required|string',
         };
         const validator = make(req.body, rules);
         if (!validator.validate()) {
