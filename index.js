@@ -57,6 +57,7 @@ app.group('/api', (router) => {
 			groupRouter.use('/holiday', require('./api/customer/holiday/index'));
 			groupRouter.use('/gmb-profile-socre', require('./api/customer/gmb_profile_socre/index'));
 			groupRouter.use('/payment', require('./api/customer/payment/index'));
+			groupRouter.use('/plan-feature', require('./api/customer/plan_feature/index'))
 		});
 		groupV1.group('/admin', (groupRouter) => {
 			groupRouter.use('/role', require('./api/admin/user_role/index'))
@@ -68,6 +69,8 @@ app.group('/api', (router) => {
 			groupRouter.use('/attendence', require('./api/admin/attendence/index'))
 			groupRouter.use('/routes', require('./api/admin/admin_routes/index'))
 			groupRouter.use('/holiday', require('./api/admin/holiday/index'))
+			groupRouter.use('/plan', require('./api/admin/plan/index'))
+			groupRouter.use('/plan-feature', require('./api/admin/plan_feature/index'))
 		})
 	});
 });
