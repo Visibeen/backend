@@ -24,6 +24,9 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE',
     },
+    lead_uid:{
+      type: DataTypes.STRING,
+    },
     employee_id: {
       type: DataTypes.BIGINT,
       references: {

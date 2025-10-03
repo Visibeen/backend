@@ -245,4 +245,28 @@ router.post('/create-users', async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 });
+router.get('/get-cro', async function (req, res) {
+    try {
+        const data = await models.User.findAll({
+            where: {
+                role_id: 9
+            }
+        })
+        return REST.success(res, data, 'Get CRO Successfully.');
+    } catch (error) {
+        return REST.error(res, error.message, 500);
+    }
+})
+router.get('/get-seo', async function (req, res) {
+    try {
+        const data = await models.User.findAll({
+            where:{
+                role_id: 11
+            }
+        })
+        return REST.success(res, data, 'Get SEO Successfully.');
+    } catch (error) {
+        return REST.error(res, error.message, 500);
+    }
+})
 module.exports = router;
