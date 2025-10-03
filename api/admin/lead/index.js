@@ -27,9 +27,11 @@ const { log } = require('console');
 router.post('/add-lead', async function (req, res) {
     const cUser = req.body.current_user
     try {
+        const leadUid = 'E' + support.generateRandomNumber();
         let leadRecord = await models.sequelize.transaction(async (transaction) => {
             let leadData = await models.lead.create({
                 user_id: cUser.id,
+                lead_uid: leadUid,
                 employee_id: req.body.employee_id,
                 contact_person: req.body.contact_person,
                 status: req.body.status,
@@ -103,8 +105,8 @@ router.get('/get-leads', async function (req, res) {
                         {
                             model: models.User,
                             as: "addedby",
-                            attributes:["id", "full_name"]
-                            
+                            attributes: ["id", "full_name"]
+
                         }
                     ]
                 },
