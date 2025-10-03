@@ -22,6 +22,8 @@ const employee_role = require('./employee_role.js')(sequelize, Sequelize.DataTyp
 const admin_routes = require('./admin_routes.js')(sequelize, Sequelize.DataTypes);
 const user_permission = require('./user_permission.js')(sequelize, Sequelize.DataTypes);
 const user_activity = require('./user_activity.js')(sequelize, Sequelize.DataTypes);
+const plan = require('./plan.js')(sequelize, Sequelize.DataTypes);
+const plan_feature = require('./plan_feature.js')(sequelize, Sequelize.DataTypes);
 
 // user and bussiness account relationship
 business_account.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
@@ -94,19 +96,23 @@ User.belongsTo(user_role, { foreignKey: "role_id", as: "roles" })
 user_role.hasMany(User, { foreignKey: "role_id", as: "userDetails" })
 
 employee.belongsToMany(user_role, { through: employee_role, foreignKey: 'employee_id', otherKey: 'role_id', as: 'roles' });
-user_role.belongsToMany(employee, {
-    through: 'employee_role',
-    foreignKey: 'role_id',
-    otherKey: 'employee_id',
-    as: 'employees'          
-});
+user_role.belongsToMany(employee, {through: 'employee_role',foreignKey: 'role_id',otherKey: 'employee_id',as: 'employees'});
+
 lead.hasMany(user_activity, { foreignKey: "activity_id", as: "activityDetails" });
 user_activity.belongsTo(lead, { foreignKey: "activity_id", as: "lead" });
 
-// user activity and added by relationship
 User.hasMany(user_activity, { foreignKey: "added_by", as: "activitiesAdded" });
 user_activity.belongsTo(User, { foreignKey: "added_by", as: "addedby" });
 
+// // plan and user relationship
+// plan.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails', onDelete: 'SET NULL', onUpdate: 'CASCADE' })
+// User.hasMany(plan, { foreignKey: 'user_id', as: 'plans', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
+// plan and plan feature relationship
+plan_feature.belongsTo(plan, { foreignKey: 'plan_id', as: 'plandetails', onDelete: 'SET NULL', onUpdate: 'CASCADE' })
+plan.hasMany(plan_feature, { foreignKey: 'plan_id', as: 'plan_features', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
+// plan feature and user relationship
+plan_feature.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails', onDelete: 'SET NULL', onUpdate: 'CASCADE' })
+User.hasMany(plan_feature, { foreignKey: 'user_id', as: 'plan_features', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
 
 
 module.exports = db;
@@ -129,7 +135,9 @@ db.attendence = attendence;
 db.employee_role = employee_role
 db.admin_routes = admin_routes
 db.user_permission = user_permission;
-db.user_activity = user_activity
+db.user_activity = user_activity;
+db.plan = plan;
+db.plan_feature = plan_feature;
 
 
 Object.keys(db).forEach(modelName => {
@@ -152,6 +160,17 @@ db.resetAllTable = async () => {
   await db.business_account.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
   await db.contact_us.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
   await db.user_role.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.Payment.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.employee.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.lead.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.meeting.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.attendence.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.employee_role.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.admin_routes.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.user_permission.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.user_activity.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.plan.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.plan_feature.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
 };
 
 module.exports = db;

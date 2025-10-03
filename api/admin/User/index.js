@@ -29,7 +29,7 @@ router.post('/login', async function (req, res) {
             return REST.error(res, validator.errors().all(), 422);
         }
         const user = await models.User.findOne({ where: { email: data.email } });
-        if (!user || (user.role_id !== 1)) {
+        if (!user || (user.role_id !== 3 && user.role_id !== 3)) {
             return REST.error(res, 'User not found or invalid role.', 422);
         }
         if (user) {
@@ -49,7 +49,22 @@ router.post('/login', async function (req, res) {
                     );
                 });
                 const finalRecord = await models.User.findOne({ where: { id: user.id } });
-                return REST.success(res, finalRecord, 'Login Successful.');
+                const findUserPermission = await models.user_permission.findAll({
+                    where: { user_id: user.id },
+                })
+                const page = await Promise.all(findUserPermission.map(async (item) => {
+                    const pageData = await models.admin_routes.findOne({ where: { id: item.page_id } });
+                    return {
+                        id: pageData.id,
+                        page_name: pageData.page_name,
+                        slug: pageData.slug,
+                        status: pageData.status,
+                        createdAt: pageData.createdAt,
+                        updatedAt: pageData.updatedAt
+                    };
+                }))
+                finalRecord.dataValues.page = page
+                return REST.success(res, finalRecord, 'Login Successfull.');
             } else {
                 return REST.error(res, 'Incorrect password', 401);
             }
@@ -176,4 +191,58 @@ router.get('/get-admin', async function (req, res) {
         return REST.error(res, error.message, 500);
     }
 })
+router.post('/create-users', async function (req, res) {
+    const cUser = req.body.current_user
+    try {
+        const data = req.body;
+        if (data.role_id && data.role_id !== 3) {
+            return REST.error(res, 'Invalid role!', 422);
+        }
+        if (!data.role_id) {
+            data.role_id = 3;
+        }
+        const rules = {
+            full_name: 'required|string',
+            email: 'required|string|email',
+            password: 'required|string',
+            phone_number: 'required|string',
+            page: 'required|array',
+            'page.*.page_id': 'required|integer',
+        };
+        const validator = make(data, rules);
+        if (!validator.validate()) {
+            return REST.error(res, validator.errors().all(), 422);
+        }
+        const findEmail = await models.User.findOne({ where: { email: data.email } });
+        if (findEmail) {
+            return REST.error(res, 'Email Already Exist.', 422);
+        }
+        const findPhone = await models.User.findOne({ where: { phone_number: data.phone_number } });
+        if (findPhone) {
+            return REST.error(res, 'Phone Number Already Exist.', 422);
+        }
+        const adminVm = {
+            full_name: data.full_name,
+            role_id: data.role_id,
+            email: data.email,
+            phone_number: data.phone_number,
+            status: data.status || 'active',
+        };
+        adminVm.password = await gen(data.password);
+        let admin = await models.sequelize.transaction(async (transaction) => {
+            const createdUser = await models.User.create(adminVm, { transaction });
+            for (const page of data.page) {
+                const permissionData = {
+                    user_id: createdUser.id,
+                    page_id: page.page_id,
+                };
+                await models.user_permission.create(permissionData, { transaction });
+            }
+            return createdUser;
+        });
+        return REST.success(res, admin, 'User Created successfully');
+    } catch (error) {
+        return REST.error(res, error.message, 500);
+    }
+});
 module.exports = router;
