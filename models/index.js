@@ -24,6 +24,7 @@ const user_permission = require('./user_permission.js')(sequelize, Sequelize.Dat
 const user_activity = require('./user_activity.js')(sequelize, Sequelize.DataTypes);
 const plan = require('./plan.js')(sequelize, Sequelize.DataTypes);
 const plan_feature = require('./plan_feature.js')(sequelize, Sequelize.DataTypes);
+const post_scheduler = require('./post_scheduler.js')(sequelize, Sequelize.DataTypes);
 
 // user and bussiness account relationship
 business_account.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
@@ -114,6 +115,9 @@ plan.hasMany(plan_feature, { foreignKey: 'plan_id', as: 'plan_features', onDelet
 plan_feature.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails', onDelete: 'SET NULL', onUpdate: 'CASCADE' })
 User.hasMany(plan_feature, { foreignKey: 'user_id', as: 'plan_features', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
 
+post_scheduler.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
+User.hasMany(post_scheduler, { foreignKey: 'user_id', as: 'post_schedulers', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
+
 
 module.exports = db;
 db.User = User;
@@ -138,6 +142,7 @@ db.user_permission = user_permission;
 db.user_activity = user_activity;
 db.plan = plan;
 db.plan_feature = plan_feature;
+db.post_scheduler = post_scheduler;
 
 
 Object.keys(db).forEach(modelName => {
@@ -171,6 +176,7 @@ db.resetAllTable = async () => {
   await db.user_activity.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
   await db.plan.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
   await db.plan_feature.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
+  await db.post_scheduler.destroy({ where: {}, force: true, truncate: { cascade: true, restartIdentity: true } });
 };
 
 module.exports = db;

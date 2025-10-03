@@ -4,6 +4,9 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const express = require("express");
 const http = require("http");
+const fs = require('fs');
+const path = require('path');
+const https = require('https');
 const fileUpload = require('express-fileupload');
 const cron = require('node-cron');
 const config = require('./config');
@@ -57,7 +60,8 @@ app.group('/api', (router) => {
 			groupRouter.use('/holiday', require('./api/customer/holiday/index'));
 			groupRouter.use('/gmb-profile-socre', require('./api/customer/gmb_profile_socre/index'));
 			groupRouter.use('/payment', require('./api/customer/payment/index'));
-			groupRouter.use('/plan-feature', require('./api/customer/plan_feature/index'))
+			groupRouter.use('/plan-feature', require('./api/customer/plan_feature/index'));
+			groupRouter.use('/post-scheduler', require('./api/customer/post_scheduler/index'));
 		});
 		groupV1.group('/admin', (groupRouter) => {
 			groupRouter.use('/role', require('./api/admin/user_role/index'))
