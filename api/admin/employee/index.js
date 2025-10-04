@@ -65,21 +65,6 @@ router.post('/add-employee', async function (req, res) {
                 current_state: req.body.current_state,
                 current_country: req.body.current_country,
             }, { transaction });
-
-            // const roleIds = req.body.role_id;
-            // const employeeRoleData = roleIds.map(roleId => ({
-            //     employee_id: employeeData.id,
-            //     role_id: roleId,
-            // }));
-            // await models.employee_role.bulkCreate(employeeRoleData, { transaction });
-            // const pages = req.body.page;
-            // for (const page of pages) {
-            //     const permissionData = {
-            //         user_id: employeeData.user_id,
-            //         page_id: page.page_id
-            //     };
-            //     await models.user_permission.create(permissionData, { transaction });
-            // }
             return employeeData;
         });
         return REST.success(res, employeeRecord, 'Employee added successfully');
