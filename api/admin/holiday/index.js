@@ -85,5 +85,89 @@ router.get("/get-all-holidays", async function (req, res) {
         return REST.error(res, "Failed to retrieve holidays", 500);
     }
 });
+router.get('/search-holidays', async function (req, res) {
+    const cUser = req.body.current_user;
+    try {
+        const { name, date, status } = req.query;
+        let whereClause = { user_id: cUser.id };
+        if (name) {
+            whereClause.name = { [models.Sequelize.Op.iLike]: `%${name}%` };
+        }
+        if (date) {
+            whereClause.date = date;
+        }
+        if (status) {
+            whereClause.status = status;
+        }
+        const holidays = await models.holiday.findAll({
+            where: whereClause,
+            attributes: ['id', 'user_id', 'name', 'date', 'template', 'status', 'created_by', 'updated_by', 'image', 'createdAt', 'updatedAt'],
+            order: [['id', 'DESC']],
+            include: [
+                {
+                    model: models.User,
+                    as: 'userdetails',
+                },
+                {
+                    model: models.User,
+                    as: 'createdBy',
+                    attributes: ["id", "full_name"]
+                },
+                {
+                    model: models.User,
+                    as: 'updatedBy',
+                    attributes: ["id", "full_name"]
+                }
+            ]
+        });
+        return REST.success(res, holidays, "Holidays retrieved successfully");
+    } catch (error) {
+        return REST.error(res, "Failed to retrieve holidays", 500);
+    }
+});
+router.put("/update-holiday/:id", async function (req, res) {
+    const cUser = req.body.current_user;
+    try {
+        const findHoliday = await models.holiday.findOne({
+            where: {
+                id: req.params.id,
+                user_id: cUser.id
+            }
+        });
+        if (!findHoliday) {
+            return REST.error(res, 'Holiday not found', 404);
+        }
+        await findHoliday.update({
+            name: req.body.name,
+            date: req.body.date,
+            template: req.body.template,
+            updated_by: cUser.id,
+        });
+        return REST.success(res, findHoliday, "Holiday updated successfully");
+    }
+
+    catch (error) {
+        return REST.error(res, "Failed to update holiday", 500);
+    }
+});
+router.delete("/delete-holiday/:id", async function (req, res) {
+    const cUser = req.body.current_user;
+    try {
+        const findHoliday = await models.holiday.findOne({
+            where: {
+                id: req.params.id,
+                user_id: cUser.id
+            }
+        });
+        if (!findHoliday) {
+            return REST.error(res, 'Holiday not found', 404);
+        }
+        await findHoliday.destroy();
+        return REST.success(res, null, "Holiday deleted successfully");
+    }
+    catch (error) {
+        return REST.error(res, "Failed to delete holiday", 500);
+    }
+});
 
 module.exports = router;

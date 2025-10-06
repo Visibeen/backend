@@ -165,7 +165,7 @@ router.post('/change-password', async function (req, res) {
                 const hashedNewPassword = await gen(data.newPassword);
                 await models.User.update(
                     { password: hashedNewPassword },
-                    { where: { id: cUser.id } }
+                    { where: { id: cUser.id } } 
                 );
                 return REST.success(res, 'Password changed successfully');
             } else {
