@@ -13,8 +13,10 @@ const { compare } = require('../../../utils/hash');
 const auth = require('../../../utils/auth');
 const axios = require('axios');
 const puppeteer = require('puppeteer');
-
-
+const { generateGrid } = require('../../../utils/helper');
+const { postTasks } = require('../../../utils/helper');
+const pLimit = require('p-limit');
+const { v4: uuidv4 } = require('uuid');
 /*
 |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 |                                                    Google My Business (GMB) Integration Routes
@@ -640,8 +642,124 @@ router.get('/getPlacesNearBy', async function (req, res) {
 		return REST.error(res, error.message, error.response?.status || 500);
 	}
 })
+router.post('/run-maps', async (req, res) => {
+	try {
+		const {
+			keyword,
+			centerLat,
+			centerLng,
+			gridSize = 7,
+			stepMeters = 1000,
+			searchRadiusMeters = 800,
+			maxCrawlPages = 3,
+			languageCode = 'en',
+			device = 'desktop',
+			os = 'windows',
+			concurrency = Number(process.env.CONCURRENCY || 15),
+		} = req.body || {};
+		if (!keyword) return res.status(400).json({ error: 'keyword required' });
+		if (typeof centerLat !== 'number' || typeof centerLng !== 'number') return res.status(400).json({ error: 'centerLat/centerLng required' });
+		const startTime = process.hrtime.bigint();
+		const cells = await generateGrid({ centerLat, centerLng, gridSize, stepMeters, searchRadiusMeters });
+		const limit = pLimit(concurrency);
+		const timeout = Number(process.env.REQUEST_TIMEOUT_MS || 20000);
+		const jobs = cells.map((c) => limit(async () => {
+			const taskStart = process.hrtime.bigint();
+			const tasks = [{
+				keyword,
+				language_code: languageCode,
+				location_coordinate: `${c.lat},${c.lng}`,
+				depth: maxCrawlPages,
+				search_this_area: false,
+				gps_coordinates: c.gps_coordinates,
+				device,
+				os,
+				tag: c.tag,
+			}];
+			const data = await postTasks({ type: 'maps', tasks, timeout });
+			const task = data?.tasks?.[0];
+			const resultBlocks = Array.isArray(task?.result) ? task.result : [];
+			let items = [];
+			for (const block of resultBlocks) {
+				if (Array.isArray(block?.items) && block.items.length) {
+					items = block.items;
+					break;
+				}
+			}
+			if (items.length === 0) {
+				items = resultBlocks?.[0]?.items || [];
+			}
+			const taskEnd = process.hrtime.bigint();
+			const taskSeconds = Number(taskEnd - taskStart) / 1e9;
+			return {
+				cell: c,
+				items,
+				seconds: taskSeconds,
+			};
+		}));
+		const results = await Promise.all(jobs);
+		const resultArray = results.map((r) => {
+			const lat = typeof r.cell?.lat === 'number' ? r.cell.lat : centerLat;
+			const lng = typeof r.cell?.lng === 'number' ? r.cell.lng : centerLng;
+			return {
+				keyword,
+				type: 'maps',
+				se_domain: 'google.com',
+				location_code: 2356,
+				language_code: languageCode,
+				check_url: `https://google.com/maps/search/${encodeURIComponent(keyword)}/@${lat},${lng},17z?hl=${languageCode}&gl=IN&uule=w+CAIQICIFSW5kaWE`,
+				datetime: new Date().toISOString(),
+				spell: null,
+				refinement_chips: null,
+				item_types: ['maps_search'],
+				se_results_count: 0,
+				items_count: r.items.length,
+				items: r.items,
+			};
+		});
 
-
-
+		const endTime = process.hrtime.bigint();
+		const totalSeconds = Number(endTime - startTime) / 1e9;
+		const taskId = uuidv4();
+		const responseEnvelope = {
+			version: '0.1.20250922',
+			status_code: 20000,
+			status_message: 'Ok.',
+			time: `${totalSeconds.toFixed(4)} sec.`,
+			cost: 0.0,
+			tasks_count: 1,
+			tasks_error: 0,
+			tasks: [
+				{
+					id: taskId,
+					status_code: 20000,
+					status_message: 'Ok.',
+					time: `${totalSeconds.toFixed(4)} sec.`,
+					cost: 0.0,
+					result_count: resultArray.length,
+					path: ['v3', 'serp', 'google', 'maps', 'live', 'advanced'],
+					data: {
+						api: 'serp',
+						function: 'live',
+						se: 'google',
+						se_type: 'maps',
+						keyword,
+						location_coordinate: `${centerLat},${centerLng}`,
+						language_name: 'English',
+						language_code: languageCode,
+						device,
+						depth: maxCrawlPages,
+						search_this_area: 'false',
+						os,
+					},
+					result: resultArray,
+				},
+			],
+		};
+		return REST.success(res, responseEnvelope, "Maps scrape completed.");
+	} catch (e) {
+		res.status(500).json({ error: e.message });
+	}
+});
 
 module.exports = router;

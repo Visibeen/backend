@@ -32,7 +32,6 @@ module.exports = (sequelize, DataTypes) => {
       },
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL'
-
     },
     feature_name:{
       type: DataTypes.STRING,
