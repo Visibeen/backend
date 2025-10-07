@@ -14,29 +14,29 @@ const db = require('./config/db')
 const axios = require('axios')
 db;
 
-
 global.support = require("./utils/support");
 global.constants = require("./constants/index");
 const { initSocket } = require('./socket');
 const app = express();
 
+const allowedOrigins = ['https://visibeen.com', 'https://www.visibeen.com','https://api.visibeen.com','http://localhost:8089'];
 app.use(
-	cors({
-		origin: function (origin, callback) {
-			callback(null, true);
-		},
-	})
+    cors({
+        origin: allowedOrigins,
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+    })
 );
 
-
-app.options("*", cors());
+app.options("*", cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json())
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(fileUpload({ createParentPath: true, limits: { fileSize: config.limit_file_size } }));
 
 const middleware = require("./utils/middleware")
 app.get('/health', (req, res) => {
-	res.status(200).send('OK');
+    res.status(200).send('OK');
 });
 //Defined all urls here
 app.group('/api', (router) => {
