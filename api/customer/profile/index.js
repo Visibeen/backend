@@ -642,127 +642,188 @@ router.get('/getPlacesNearBy', async function (req, res) {
 		return REST.error(res, error.message, error.response?.status || 500);
 	}
 })
-router.post('/run-maps', async (req, res) => {
-	try {
-		const {
-			keyword,
-			centerLat,
-			centerLng,
-			gridSize = 7,
-			stepMeters = 1000,
-			searchRadiusMeters = 800,
-			maxCrawlPages = 20,
-			depth,
-			languageCode = 'en',
-			device = 'desktop',
-			os = 'windows',
-			concurrency = Number(process.env.CONCURRENCY || 15),
-		} = req.body || {};
-		if (!keyword) return res.status(400).json({ error: 'keyword required' });
-		if (typeof centerLat !== 'number' || typeof centerLng !== 'number') return res.status(400).json({ error: 'centerLat/centerLng required' });
-		const effectiveDepth = typeof depth === 'number' ? depth : maxCrawlPages;
-		const startTime = process.hrtime.bigint();
-		const cells = await generateGrid({ centerLat, centerLng, gridSize, stepMeters, searchRadiusMeters });
-		const limit = pLimit(concurrency);
-		const timeout = Number(process.env.REQUEST_TIMEOUT_MS || 20000);
-		const jobs = cells.map((c) => limit(async () => {
-			const taskStart = process.hrtime.bigint();
-			const tasks = [{
-				keyword,
-				language_code: languageCode,
-				location_coordinate: `${c.lat},${c.lng}`,
-				depth: effectiveDepth,
-				search_this_area: false,
-				gps_coordinates: c.gps_coordinates,
-				device,
-				os,
-				tag: c.tag,
-			}];
-			const data = await postTasks({ type: 'maps', tasks, timeout });
-			const task = data?.tasks?.[0];
-			const resultBlocks = Array.isArray(task?.result) ? task.result : [];
-			let items = [];
-			for (const block of resultBlocks) {
-				if (Array.isArray(block?.items) && block.items.length) {
-					items = block.items;
-					break;
-				}
-			}
-			if (items.length === 0) {
-				items = resultBlocks?.[0]?.items || [];
-			}
-			const taskEnd = process.hrtime.bigint();
-			const taskSeconds = Number(taskEnd - taskStart) / 1e9;
-			return {
-				cell: c,
-				items,
-				seconds: taskSeconds,
-			};
-		}));
-		const results = await Promise.all(jobs);
-		const resultArray = results.map((r) => {
-			const lat = typeof r.cell?.lat === 'number' ? r.cell.lat : centerLat;
-			const lng = typeof r.cell?.lng === 'number' ? r.cell.lng : centerLng;
-			return {
-				keyword,
-				type: 'maps',
-				se_domain: 'google.com',
-				location_code: 2356,
-				language_code: languageCode,
-				depth: effectiveDepth,
-				check_url: `https://google.com/maps/search/${encodeURIComponent(keyword)}/@${lat},${lng},17z?hl=${languageCode}&gl=IN&uule=w+CAIQICIFSW5kaWE`,
-				datetime: new Date().toISOString(),
-				spell: null,
-				refinement_chips: null,
-				item_types: ['maps_search'],
-				se_results_count: 0,
-				items_count: r.items.length,
-				items: r.items,
-			};
-		});
 
-		const endTime = process.hrtime.bigint();
-		const totalSeconds = Number(endTime - startTime) / 1e9;
-		const taskId = uuidv4();
-		const responseEnvelope = {
-			version: '0.1.20250922',
-			status_code: 20000,
-			status_message: 'Ok.',
-			time: `${totalSeconds.toFixed(4)} sec.`,
-			cost: 0.0,
-			tasks_count: 1,
-			tasks_error: 0,
-			tasks: [
-				{
-					id: taskId,
-					status_code: 20000,
-					status_message: 'Ok.',
-					time: `${totalSeconds.toFixed(4)} sec.`,
-					cost: 0.0,
-					result_count: resultArray.length,
-					path: ['v3', 'serp', 'google', 'maps', 'live', 'advanced'],
-					data: {
-						api: 'serp',
-						function: 'live',
-						se: 'google',
-						se_type: 'maps',
-						keyword,
-						location_coordinate: `${centerLat},${centerLng}`,
-						language_name: 'English',
-						language_code: languageCode,
-						device,
-						depth: effectiveDepth,
-						search_this_area: 'false',
-						os,
-					},
-					result: resultArray,
-				},
-			],
-		};
-		return REST.success(res, responseEnvelope, "Maps scrape completed.");
-	} catch (e) {
-		res.status(500).json({ error: e.message });
-	}
+// ============================================
+// MAIN ROUTE HANDLER - CORRECTED VERSION
+// ============================================
+router.post('/run-maps', async (req, res) => {
+    try {
+        const {
+            keyword,
+            centerLat,
+            centerLng,
+            gridSize = 7,
+            stepMeters = 1000,
+            searchRadiusMeters = 800,
+            maxCrawlPages = 20,
+            depth,
+            languageCode = 'en',
+            device = 'desktop',
+            os = 'windows',
+            concurrency = Number(process.env.CONCURRENCY || 15),
+        } = req.body || {};
+
+        // Validate required parameters
+        if (!keyword) return res.status(400).json({ error: 'keyword required' });
+        if (typeof centerLat !== 'number' || typeof centerLng !== 'number') {
+            return res.status(400).json({ error: 'centerLat/centerLng required' });
+        }
+
+        const effectiveDepth = typeof depth === 'number' ? depth : maxCrawlPages;
+        const startTime = process.hrtime.bigint();
+
+        // Generate grid points
+        const cells = await generateGrid({ 
+            centerLat, 
+            centerLng, 
+            gridSize, 
+            stepMeters, 
+            searchRadiusMeters 
+        });
+
+        console.log(`🗺️ Generated ${cells.length} grid points for analysis`);
+
+        const limit = pLimit(concurrency);
+        const timeout = Number(process.env.REQUEST_TIMEOUT_MS || 20000);
+
+        // Make separate API call for each grid point
+        const jobs = cells.map((c) => limit(async () => {
+            const taskStart = process.hrtime.bigint();
+            
+            // Create task for this specific grid point
+            const tasks = [{
+                keyword,
+                language_code: languageCode,
+                location_coordinate: `${c.lat},${c.lng}`,
+                depth: effectiveDepth,
+                search_this_area: false,
+                gps_coordinates: c.gps_coordinates,
+                device,
+                os,
+                tag: c.tag,
+            }];
+
+            console.log(`📍 Searching at grid point ${c.cellId}: (${c.lat.toFixed(4)}, ${c.lng.toFixed(4)})`);
+
+            // Call DataForSEO API for this grid point
+            const data = await postTasks({ type: 'maps', tasks, timeout });
+            
+            const task = data?.tasks?.[0];
+            const resultBlocks = Array.isArray(task?.result) ? task.result : [];
+            
+            // Extract items from result
+            let items = [];
+            for (const block of resultBlocks) {
+                if (Array.isArray(block?.items) && block.items.length) {
+                    items = block.items;
+                    break;
+                }
+            }
+            
+            if (items.length === 0) {
+                items = resultBlocks?.[0]?.items || [];
+            }
+
+            const taskEnd = process.hrtime.bigint();
+            const taskSeconds = Number(taskEnd - taskStart) / 1e9;
+
+            console.log(`✅ Grid point ${c.cellId}: Found ${items.length} businesses in ${taskSeconds.toFixed(2)}s`);
+
+            return {
+                cell: c,
+                items,
+                seconds: taskSeconds,
+                taskData: task?.data || {},
+            };
+        }));
+
+        // Wait for all grid points to complete
+        const results = await Promise.all(jobs);
+
+        // ============================================
+        // KEY FIX: Create separate task for each grid point
+        // ============================================
+        const tasks = results.map((r) => {
+            const lat = typeof r.cell?.lat === 'number' ? r.cell.lat : centerLat;
+            const lng = typeof r.cell?.lng === 'number' ? r.cell.lng : centerLng;
+            const taskId = uuidv4();
+
+            return {
+                id: taskId,
+                status_code: 20000,
+                status_message: 'Ok.',
+                time: `${r.seconds.toFixed(4)} sec.`,
+                cost: 0.0,
+                result_count: 1,
+                path: ['v3', 'serp', 'google', 'maps', 'live', 'advanced'],
+                data: {
+                    api: 'serp',
+                    function: 'live',
+                    se: 'google',
+                    se_type: 'maps',
+                    keyword,
+                    location_coordinate: `${lat},${lng}`,
+                    language_name: 'English',
+                    language_code: languageCode,
+                    device,
+                    depth: effectiveDepth,
+                    search_this_area: false,
+                    os,
+                    gps_coordinates: r.cell.gps_coordinates,
+                    // Include grid position for frontend
+                    grid_position: {
+                        cellId: r.cell.cellId,
+                        i: r.cell.i,
+                        j: r.cell.j,
+                        lat: r.cell.lat,
+                        lng: r.cell.lng
+                    }
+                },
+                result: [
+                    {
+                        keyword,
+                        type: 'maps',
+                        se_domain: 'google.com',
+                        location_code: 2356,
+                        language_code: languageCode,
+                        depth: effectiveDepth,
+                        check_url: `https://google.com/maps/search/${encodeURIComponent(keyword)}/@${lat},${lng},17z?hl=${languageCode}&gl=IN`,
+                        datetime: new Date().toISOString(),
+                        spell: null,
+                        refinement_chips: null,
+                        item_types: ['maps_search'],
+                        se_results_count: 0,
+                        items_count: r.items.length,
+                        items: r.items, // Each grid point has its own items!
+                    }
+                ]
+            };
+        });
+
+        const endTime = process.hrtime.bigint();
+        const totalSeconds = Number(endTime - startTime) / 1e9;
+
+        // Return response with separate task for each grid point
+        const responseEnvelope = {
+            version: '0.1.20250922',
+            status_code: 20000,
+            status_message: 'Ok.',
+            time: `${totalSeconds.toFixed(4)} sec.`,
+            cost: 0.0,
+            tasks_count: tasks.length, // Number of grid points
+            tasks_error: 0,
+            tasks: tasks, // Array of tasks, one per grid point
+        };
+
+        console.log(`🎉 Completed heatmap analysis: ${tasks.length} grid points in ${totalSeconds.toFixed(2)}s`);
+
+        return res.status(200).json(responseEnvelope);
+
+    } catch (e) {
+        console.error('❌ Error in /run-maps:', e);
+        res.status(500).json({ error: e.message });
+    }
 });
+
 
 module.exports = router;
