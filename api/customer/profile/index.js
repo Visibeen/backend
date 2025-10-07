@@ -652,6 +652,7 @@ router.post('/run-maps', async (req, res) => {
 			stepMeters = 1000,
 			searchRadiusMeters = 800,
 			maxCrawlPages = 3,
+			depth,
 			languageCode = 'en',
 			device = 'desktop',
 			os = 'windows',
@@ -659,6 +660,7 @@ router.post('/run-maps', async (req, res) => {
 		} = req.body || {};
 		if (!keyword) return res.status(400).json({ error: 'keyword required' });
 		if (typeof centerLat !== 'number' || typeof centerLng !== 'number') return res.status(400).json({ error: 'centerLat/centerLng required' });
+		const effectiveDepth = typeof depth === 'number' ? depth : maxCrawlPages;
 		const startTime = process.hrtime.bigint();
 		const cells = await generateGrid({ centerLat, centerLng, gridSize, stepMeters, searchRadiusMeters });
 		const limit = pLimit(concurrency);
@@ -669,7 +671,7 @@ router.post('/run-maps', async (req, res) => {
 				keyword,
 				language_code: languageCode,
 				location_coordinate: `${c.lat},${c.lng}`,
-				depth: maxCrawlPages,
+				depth: effectiveDepth,
 				search_this_area: false,
 				gps_coordinates: c.gps_coordinates,
 				device,
@@ -707,6 +709,7 @@ router.post('/run-maps', async (req, res) => {
 				se_domain: 'google.com',
 				location_code: 2356,
 				language_code: languageCode,
+				depth: effectiveDepth,
 				check_url: `https://google.com/maps/search/${encodeURIComponent(keyword)}/@${lat},${lng},17z?hl=${languageCode}&gl=IN&uule=w+CAIQICIFSW5kaWE`,
 				datetime: new Date().toISOString(),
 				spell: null,
@@ -748,7 +751,7 @@ router.post('/run-maps', async (req, res) => {
 						language_name: 'English',
 						language_code: languageCode,
 						device,
-						depth: maxCrawlPages,
+						depth: effectiveDepth,
 						search_this_area: 'false',
 						os,
 					},
