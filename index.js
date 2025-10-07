@@ -19,7 +19,7 @@ global.constants = require("./constants/index");
 const { initSocket } = require('./socket');
 const app = express();
 
-const allowedOrigins = ['https://visibeen.com', 'https://www.visibeen.com','https://api.visibeen.com','http://localhost:8089'];
+const allowedOrigins = ['https://visibeen.com', 'https://www.visibeen.com','https://api.visibeen.com','http://localhost:8089', 'http://localhost:3000',];
 app.use(
     cors({
         origin: allowedOrigins,
