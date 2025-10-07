@@ -651,7 +651,7 @@ router.post('/run-maps', async (req, res) => {
 			gridSize = 7,
 			stepMeters = 1000,
 			searchRadiusMeters = 800,
-			maxCrawlPages = 3,
+			maxCrawlPages = 20,
 			depth,
 			languageCode = 'en',
 			device = 'desktop',
