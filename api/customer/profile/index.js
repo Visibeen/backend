@@ -643,9 +643,6 @@ router.get('/getPlacesNearBy', async function (req, res) {
 	}
 })
 
-// ============================================
-// MAIN ROUTE HANDLER - CORRECTED VERSION
-// ============================================
 router.post('/run-maps', async (req, res) => {
     try {
         const {
@@ -662,17 +659,12 @@ router.post('/run-maps', async (req, res) => {
             os = 'windows',
             concurrency = Number(process.env.CONCURRENCY || 15),
         } = req.body || {};
-
-        // Validate required parameters
         if (!keyword) return res.status(400).json({ error: 'keyword required' });
         if (typeof centerLat !== 'number' || typeof centerLng !== 'number') {
             return res.status(400).json({ error: 'centerLat/centerLng required' });
         }
-
         const effectiveDepth = typeof depth === 'number' ? depth : maxCrawlPages;
         const startTime = process.hrtime.bigint();
-
-        // Generate grid points
         const cells = await generateGrid({ 
             centerLat, 
             centerLng, 
@@ -680,17 +672,10 @@ router.post('/run-maps', async (req, res) => {
             stepMeters, 
             searchRadiusMeters 
         });
-
-        console.log(`🗺️ Generated ${cells.length} grid points for analysis`);
-
         const limit = pLimit(concurrency);
         const timeout = Number(process.env.REQUEST_TIMEOUT_MS || 20000);
-
-        // Make separate API call for each grid point
         const jobs = cells.map((c) => limit(async () => {
             const taskStart = process.hrtime.bigint();
-            
-            // Create task for this specific grid point
             const tasks = [{
                 keyword,
                 language_code: languageCode,
@@ -703,15 +688,10 @@ router.post('/run-maps', async (req, res) => {
                 tag: c.tag,
             }];
 
-            console.log(`📍 Searching at grid point ${c.cellId}: (${c.lat.toFixed(4)}, ${c.lng.toFixed(4)})`);
 
-            // Call DataForSEO API for this grid point
             const data = await postTasks({ type: 'maps', tasks, timeout });
-            
             const task = data?.tasks?.[0];
             const resultBlocks = Array.isArray(task?.result) ? task.result : [];
-            
-            // Extract items from result
             let items = [];
             for (const block of resultBlocks) {
                 if (Array.isArray(block?.items) && block.items.length) {
@@ -723,12 +703,8 @@ router.post('/run-maps', async (req, res) => {
             if (items.length === 0) {
                 items = resultBlocks?.[0]?.items || [];
             }
-
             const taskEnd = process.hrtime.bigint();
             const taskSeconds = Number(taskEnd - taskStart) / 1e9;
-
-            console.log(`✅ Grid point ${c.cellId}: Found ${items.length} businesses in ${taskSeconds.toFixed(2)}s`);
-
             return {
                 cell: c,
                 items,
@@ -736,18 +712,11 @@ router.post('/run-maps', async (req, res) => {
                 taskData: task?.data || {},
             };
         }));
-
-        // Wait for all grid points to complete
         const results = await Promise.all(jobs);
-
-        // ============================================
-        // KEY FIX: Create separate task for each grid point
-        // ============================================
         const tasks = results.map((r) => {
             const lat = typeof r.cell?.lat === 'number' ? r.cell.lat : centerLat;
             const lng = typeof r.cell?.lng === 'number' ? r.cell.lng : centerLng;
             const taskId = uuidv4();
-
             return {
                 id: taskId,
                 status_code: 20000,
@@ -770,7 +739,6 @@ router.post('/run-maps', async (req, res) => {
                     search_this_area: false,
                     os,
                     gps_coordinates: r.cell.gps_coordinates,
-                    // Include grid position for frontend
                     grid_position: {
                         cellId: r.cell.cellId,
                         i: r.cell.i,
@@ -794,7 +762,7 @@ router.post('/run-maps', async (req, res) => {
                         item_types: ['maps_search'],
                         se_results_count: 0,
                         items_count: r.items.length,
-                        items: r.items, // Each grid point has its own items!
+                        items: r.items,
                     }
                 ]
             };
@@ -802,25 +770,18 @@ router.post('/run-maps', async (req, res) => {
 
         const endTime = process.hrtime.bigint();
         const totalSeconds = Number(endTime - startTime) / 1e9;
-
-        // Return response with separate task for each grid point
         const responseEnvelope = {
             version: '0.1.20250922',
             status_code: 20000,
             status_message: 'Ok.',
             time: `${totalSeconds.toFixed(4)} sec.`,
             cost: 0.0,
-            tasks_count: tasks.length, // Number of grid points
+            tasks_count: tasks.length, 
             tasks_error: 0,
-            tasks: tasks, // Array of tasks, one per grid point
+            tasks: tasks,
         };
-
-        console.log(`🎉 Completed heatmap analysis: ${tasks.length} grid points in ${totalSeconds.toFixed(2)}s`);
-
         return res.status(200).json(responseEnvelope);
-
     } catch (e) {
-        console.error('❌ Error in /run-maps:', e);
         res.status(500).json({ error: e.message });
     }
 });
