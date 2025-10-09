@@ -1,7 +1,3 @@
-
-const { v4: uuidv4 } = require('uuid');
-const pLimit = require('p-limit');
-
 const MAPS_URL = 'https://api.dataforseo.com/v3/serp/google/maps/live/advanced';
 const LOCAL_FINDER_URL = 'https://api.dataforseo.com/v3/serp/google/local_finder/live/advanced';
 

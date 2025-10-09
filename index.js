@@ -43,6 +43,7 @@ app.group('/api', (router) => {
 	router.use('/file', require("./api/_files"));
 	router.use('/migrate', require("./api/migrate"));
 	router.use('/version', require("./api/version"));
+	router.use('/whatsapp', require("./api/whatsapp"));
 	router.use("/health", require("./api/health"));
 	router.group('/v1', (groupV1) => {
 		groupV1.use('/errors', require("./api/errors"));
