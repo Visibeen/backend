@@ -14,14 +14,16 @@ const user = require('../../../constants/user');
 
 
 router.get('/get-features', async function (req, res) {
-    const cUser = req.body.current_user;
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 10;
     const offset = (page - 1) * pageSize;
+    const user_id = req.query.user_id
     try {
         const { count, rows: plan } = await models.plan_feature.findAndCountAll({
             where: {
-                user_id: cUser.id
+                user_id: {
+                    [Op.eq]: user_id
+                }
             },
             include: [
                 {

@@ -1,16 +1,8 @@
-// CORRECTED Backend Route for /run-maps
-// This version properly returns separate results for each grid point
-
-const { v4: uuidv4 } = require('uuid');
-const pLimit = require('p-limit');
-
-// DataForSEO API URLs
 const MAPS_URL = 'https://api.dataforseo.com/v3/serp/google/maps/live/advanced';
 const LOCAL_FINDER_URL = 'https://api.dataforseo.com/v3/serp/google/local_finder/live/advanced';
 
-// Convert meters to degrees for grid calculation
 const metersToDegrees = async (lat, meters) => {
-    const earthRadius = 6378137; // in meters
+    const earthRadius = 6378137;
     const dLat = meters / earthRadius;
     const dLng = meters / (earthRadius * Math.cos((Math.PI * lat) / 180));
     return {
@@ -19,7 +11,6 @@ const metersToDegrees = async (lat, meters) => {
     };
 };
 
-// Generate grid points around center coordinates
 const generateGrid = async ({ centerLat, centerLng, gridSize, stepMeters, searchRadiusMeters = 800 }) => {
     const half = Math.floor(gridSize / 2);
     const { dLat, dLng } = await metersToDegrees(centerLat, stepMeters);
@@ -31,7 +22,6 @@ const generateGrid = async ({ centerLat, centerLng, gridSize, stepMeters, search
             const lng = centerLng + j * dLng;
             const gps = `${lat.toFixed(6)},${lng.toFixed(6)},${searchRadiusMeters}`;
             const cellId = `cell-${i}-${j}`;
-
             cells.push({
                 i,
                 j,
@@ -47,7 +37,6 @@ const generateGrid = async ({ centerLat, centerLng, gridSize, stepMeters, search
     return cells;
 };
 
-// Get DataForSEO authentication header
 const getAuthHeader = () => {
     const { DATAFORSEO_LOGIN, DATAFORSEO_PASSWORD } = process.env;
     if (!DATAFORSEO_LOGIN || !DATAFORSEO_PASSWORD) {
@@ -57,7 +46,6 @@ const getAuthHeader = () => {
     return 'Basic ' + token;
 };
 
-// Call DataForSEO API
 const postTasks = async ({ type, tasks, timeout = 20000 }) => {
     const url = type === 'maps' ? MAPS_URL : LOCAL_FINDER_URL;
     const controller = new AbortController();
