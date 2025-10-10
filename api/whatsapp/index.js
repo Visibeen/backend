@@ -11,15 +11,17 @@ router.get('/webhook', (req, res) => {
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
     if (mode === 'subscribe' && token === WABA_VERIFY_TOKEN) {
+      console.log('WhatsApp webhook verification succeeded');
       return res.status(200).send(challenge);
     }
+    console.warn('WhatsApp webhook verification failed');
     return res.sendStatus(403);
   } catch (err) {
     return res.sendStatus(500);
   }
 });
 
-router.post('/webhooks', async (req, res) => {
+router.post('/webhook', async (req, res) => {
   try {
     res.sendStatus(200);
     const body = req.body;
@@ -43,6 +45,7 @@ router.post('/webhooks', async (req, res) => {
           }
 
           if (from && text) {
+            console.log('Incoming WA message from', from, 'text:', text);
             await sendTextMessage(from, `You said: ${text}`);
           }
         }
