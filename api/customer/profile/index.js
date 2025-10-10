@@ -642,149 +642,199 @@ router.get('/getPlacesNearBy', async function (req, res) {
 		return REST.error(res, error.message, error.response?.status || 500);
 	}
 })
-
 router.post('/run-maps', async (req, res) => {
-    try {
-        const {
-            keyword,
-            centerLat,
-            centerLng,
-            gridSize = 7,
-            stepMeters = 1000,
-            searchRadiusMeters = 800,
-            maxCrawlPages = 20,
-            depth,
-            languageCode = 'en',
-            device = 'desktop',
-            os = 'windows',
-            concurrency = Number(process.env.CONCURRENCY || 15),
-        } = req.body || {};
-        if (!keyword) return res.status(400).json({ error: 'keyword required' });
-        if (typeof centerLat !== 'number' || typeof centerLng !== 'number') {
-            return res.status(400).json({ error: 'centerLat/centerLng required' });
-        }
-        const effectiveDepth = typeof depth === 'number' ? depth : maxCrawlPages;
-        const startTime = process.hrtime.bigint();
-        const cells = await generateGrid({ 
-            centerLat, 
-            centerLng, 
-            gridSize, 
-            stepMeters, 
-            searchRadiusMeters 
-        });
-        const limit = pLimit(concurrency);
-        const timeout = Number(process.env.REQUEST_TIMEOUT_MS || 20000);
-        const jobs = cells.map((c) => limit(async () => {
-            const taskStart = process.hrtime.bigint();
-            const tasks = [{
-                keyword,
-                language_code: languageCode,
-                location_coordinate: `${c.lat},${c.lng}`,
-                depth: effectiveDepth,
-                search_this_area: false,
-                gps_coordinates: c.gps_coordinates,
-                device,
-                os,
-                tag: c.tag,
-            }];
+	try {
+		const {
+			keyword,
+			centerLat,
+			centerLng,
+			gridSize = 7,
+			stepMeters = 1000,
+			searchRadiusMeters = 800,
+			maxCrawlPages = 20,
+			depth,
+			languageCode = 'en',
+			device = 'desktop',
+			os = 'windows',
+			concurrency = Number(process.env.CONCURRENCY || 15),
+		} = req.body || {};
+		if (!keyword) return res.status(400).json({ error: 'keyword required' });
+		if (typeof centerLat !== 'number' || typeof centerLng !== 'number') {
+			return res.status(400).json({ error: 'centerLat/centerLng required' });
+		}
+		const effectiveDepth = typeof depth === 'number' ? depth : maxCrawlPages;
+		const startTime = process.hrtime.bigint();
+		const cells = await generateGrid({
+			centerLat,
+			centerLng,
+			gridSize,
+			stepMeters,
+			searchRadiusMeters
+		});
+		const limit = pLimit(concurrency);
+		const timeout = Number(process.env.REQUEST_TIMEOUT_MS || 20000);
+		const jobs = cells.map((c) => limit(async () => {
+			const taskStart = process.hrtime.bigint();
+			const tasks = [{
+				keyword,
+				language_code: languageCode,
+				location_coordinate: `${c.lat},${c.lng}`,
+				depth: effectiveDepth,
+				search_this_area: false,
+				gps_coordinates: c.gps_coordinates,
+				device,
+				os,
+				tag: c.tag,
+			}];
 
 
-            const data = await postTasks({ type: 'maps', tasks, timeout });
-            const task = data?.tasks?.[0];
-            const resultBlocks = Array.isArray(task?.result) ? task.result : [];
-            let items = [];
-            for (const block of resultBlocks) {
-                if (Array.isArray(block?.items) && block.items.length) {
-                    items = block.items;
-                    break;
-                }
-            }
-            
-            if (items.length === 0) {
-                items = resultBlocks?.[0]?.items || [];
-            }
-            const taskEnd = process.hrtime.bigint();
-            const taskSeconds = Number(taskEnd - taskStart) / 1e9;
-            return {
-                cell: c,
-                items,
-                seconds: taskSeconds,
-                taskData: task?.data || {},
-            };
-        }));
-        const results = await Promise.all(jobs);
-        const tasks = results.map((r) => {
-            const lat = typeof r.cell?.lat === 'number' ? r.cell.lat : centerLat;
-            const lng = typeof r.cell?.lng === 'number' ? r.cell.lng : centerLng;
-            const taskId = uuidv4();
-            return {
-                id: taskId,
-                status_code: 20000,
-                status_message: 'Ok.',
-                time: `${r.seconds.toFixed(4)} sec.`,
-                cost: 0.0,
-                result_count: 1,
-                path: ['v3', 'serp', 'google', 'maps', 'live', 'advanced'],
-                data: {
-                    api: 'serp',
-                    function: 'live',
-                    se: 'google',
-                    se_type: 'maps',
-                    keyword,
-                    location_coordinate: `${lat},${lng}`,
-                    language_name: 'English',
-                    language_code: languageCode,
-                    device,
-                    depth: effectiveDepth,
-                    search_this_area: false,
-                    os,
-                    gps_coordinates: r.cell.gps_coordinates,
-                    grid_position: {
-                        cellId: r.cell.cellId,
-                        i: r.cell.i,
-                        j: r.cell.j,
-                        lat: r.cell.lat,
-                        lng: r.cell.lng
-                    }
-                },
-                result: [
-                    {
-                        keyword,
-                        type: 'maps',
-                        se_domain: 'google.com',
-                        location_code: 2356,
-                        language_code: languageCode,
-                        depth: effectiveDepth,
-                        check_url: `https://google.com/maps/search/${encodeURIComponent(keyword)}/@${lat},${lng},17z?hl=${languageCode}&gl=IN`,
-                        datetime: new Date().toISOString(),
-                        spell: null,
-                        refinement_chips: null,
-                        item_types: ['maps_search'],
-                        se_results_count: 0,
-                        items_count: r.items.length,
-                        items: r.items,
-                    }
-                ]
-            };
-        });
+			const data = await postTasks({ type: 'maps', tasks, timeout });
+			const task = data?.tasks?.[0];
+			const resultBlocks = Array.isArray(task?.result) ? task.result : [];
+			let items = [];
+			for (const block of resultBlocks) {
+				if (Array.isArray(block?.items) && block.items.length) {
+					items = block.items;
+					break;
+				}
+			}
 
-        const endTime = process.hrtime.bigint();
-        const totalSeconds = Number(endTime - startTime) / 1e9;
-        const responseEnvelope = {
-            version: '0.1.20250922',
-            status_code: 20000,
-            status_message: 'Ok.',
-            time: `${totalSeconds.toFixed(4)} sec.`,
-            cost: 0.0,
-            tasks_count: tasks.length, 
-            tasks_error: 0,
-            tasks: tasks,
-        };
-        return res.status(200).json(responseEnvelope);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
+			if (items.length === 0) {
+				items = resultBlocks?.[0]?.items || [];
+			}
+			const taskEnd = process.hrtime.bigint();
+			const taskSeconds = Number(taskEnd - taskStart) / 1e9;
+			return {
+				cell: c,
+				items,
+				seconds: taskSeconds,
+				taskData: task?.data || {},
+			};
+		}));
+		const results = await Promise.all(jobs);
+		const tasks = results.map((r) => {
+			const lat = typeof r.cell?.lat === 'number' ? r.cell.lat : centerLat;
+			const lng = typeof r.cell?.lng === 'number' ? r.cell.lng : centerLng;
+			const taskId = uuidv4();
+			return {
+				id: taskId,
+				status_code: 20000,
+				status_message: 'Ok.',
+				time: `${r.seconds.toFixed(4)} sec.`,
+				cost: 0.0,
+				result_count: 1,
+				path: ['v3', 'serp', 'google', 'maps', 'live', 'advanced'],
+				data: {
+					api: 'serp',
+					function: 'live',
+					se: 'google',
+					se_type: 'maps',
+					keyword,
+					location_coordinate: `${lat},${lng}`,
+					language_name: 'English',
+					language_code: languageCode,
+					device,
+					depth: effectiveDepth,
+					search_this_area: false,
+					os,
+					gps_coordinates: r.cell.gps_coordinates,
+					grid_position: {
+						cellId: r.cell.cellId,
+						i: r.cell.i,
+						j: r.cell.j,
+						lat: r.cell.lat,
+						lng: r.cell.lng
+					}
+				},
+				result: [
+					{
+						keyword,
+						type: 'maps',
+						se_domain: 'google.com',
+						location_code: 2356,
+						language_code: languageCode,
+						depth: effectiveDepth,
+						check_url: `https://google.com/maps/search/${encodeURIComponent(keyword)}/@${lat},${lng},17z?hl=${languageCode}&gl=IN`,
+						datetime: new Date().toISOString(),
+						spell: null,
+						refinement_chips: null,
+						item_types: ['maps_search'],
+						se_results_count: 0,
+						items_count: r.items.length,
+						items: r.items,
+					}
+				]
+			};
+		});
+
+		const endTime = process.hrtime.bigint();
+		const totalSeconds = Number(endTime - startTime) / 1e9;
+		const responseEnvelope = {
+			version: '0.1.20250922',
+			status_code: 20000,
+			status_message: 'Ok.',
+			time: `${totalSeconds.toFixed(4)} sec.`,
+			cost: 0.0,
+			tasks_count: tasks.length,
+			tasks_error: 0,
+			tasks: tasks,
+		};
+		return res.status(200).json(responseEnvelope);
+	} catch (e) {
+		res.status(500).json({ error: e.message });
+	}
 });
-
-
+router.post('/gmb-media', async function (req, res) {
+	try {
+		const { googleAccessToken, locationId, mediaItem } = req.body;
+		if (!googleAccessToken) {
+			return REST.error(res, 'Google access token is required.', 400);
+		}
+		if (!locationId) {
+			return REST.error(res, 'Location ID is required.', 400);
+		}
+		if (!mediaItem || typeof mediaItem !== 'object') {
+			return REST.error(res, 'mediaItem object is required.', 400);
+		}
+		const token = googleAccessToken.trim();
+		const url = `https://mybusinessbusinessinformation.googleapis.com/v1/${encodeURIComponent(locationId)}/media`;
+		const response = await axios.post(url, mediaItem, {
+			headers: {
+				'Authorization': `Bearer ${token}`,
+				'Content-Type': 'application/json',
+			},
+		});
+		console.log(response.data, 'Media item created:');
+		
+		return REST.success(res, response.data, 'Media item created successfully.');
+	} catch (error) {
+		return REST.error(res, error.message, error.response?.status || 500);
+	}
+})
+router.post('/gmb-localpost', async function (req, res) {
+	try {
+		const { googleAccessToken, locationId, localPost } = req.body;
+		if (!googleAccessToken) {
+			return REST.error(res, 'Google access token is required.', 400);
+		}
+		if (!locationId) {
+			return REST.error(res, 'Location ID is required.', 400);
+		}
+		if (!localPost || typeof localPost !== 'object') {
+			return REST.error(res, 'localPost object is required.', 400);
+		}
+		const token = googleAccessToken.trim();
+		const url = `https://mybusiness.googleapis.com/v4/${encodeURIComponent(locationId)}/localPosts`;
+		const response = await axios.post(url, localPost, {
+			headers: {
+				'Authorization': `Bearer ${token}`,
+				'Content-Type': 'application/json',
+			},
+		});
+		console.log(response.data, 'Local post created:');
+		return REST.success(res, response.data, 'Local post created successfully.');
+	} catch (error) {
+		return REST.error(res, error.message, error.response?.status || 500);
+	}
+})
 module.exports = router;
