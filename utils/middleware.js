@@ -51,7 +51,36 @@ const routeAuthentication = (roles) => async (req, res, next) => {
         res.status(401).send({ message: "Unauthorized" });
     }
 }
+
+// Middleware to check if user is admin or super admin
+const isAdminOrSuperAdmin = async (req, res, next) => {
+    try {
+        const cUser = req.body.current_user;
+        if (!cUser) {
+            return REST.error(res, "Unauthorized", 401);
+        }
+
+        const user = await models.User.findOne({ where: { id: cUser.id } });
+        if (!user) {
+            return REST.error(res, "User not found", 404);
+        }
+
+        const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'admin@visibeen.com';
+        const ADMIN_ROLE_IDS = [1, 2, 4, 7, 12];
+
+        // Check if user is super admin or has admin role
+        if (user.email === SUPER_ADMIN_EMAIL || ADMIN_ROLE_IDS.includes(user.role_id)) {
+            next();
+        } else {
+            return REST.error(res, "Only admins can access this resource", 403);
+        }
+    } catch (error) {
+        return REST.error(res, error.message, 500);
+    }
+};
+
 module.exports = {
     verifyAuthenticate,
-    routeAuthentication
+    routeAuthentication,
+    isAdminOrSuperAdmin
 };

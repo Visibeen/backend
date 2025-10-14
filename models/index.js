@@ -25,6 +25,7 @@ const user_activity = require('./user_activity.js')(sequelize, Sequelize.DataTyp
 const plan = require('./plan.js')(sequelize, Sequelize.DataTypes);
 const plan_feature = require('./plan_feature.js')(sequelize, Sequelize.DataTypes);
 const post_scheduler = require('./post_scheduler.js')(sequelize, Sequelize.DataTypes);
+const allowed_email = require('./allowed_email.js')(sequelize, Sequelize.DataTypes);
 
 // user and bussiness account relationship
 business_account.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
@@ -118,6 +119,10 @@ User.hasMany(plan_feature, { foreignKey: 'user_id', as: 'plan_features', onDelet
 post_scheduler.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
 User.hasMany(post_scheduler, { foreignKey: 'user_id', as: 'post_schedulers', onDelete: 'CASCADE', onUpdate: 'CASCADE' });
 
+// allowed email and user relationship
+allowed_email.belongsTo(User, { foreignKey: 'added_by', as: 'addedByAdmin', onDelete: 'SET NULL', onUpdate: 'CASCADE' })
+User.hasMany(allowed_email, { foreignKey: 'added_by', as: 'allowed_emails', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
+
 
 module.exports = db;
 db.User = User;
@@ -143,6 +148,7 @@ db.user_activity = user_activity;
 db.plan = plan;
 db.plan_feature = plan_feature;
 db.post_scheduler = post_scheduler;
+db.allowed_email = allowed_email;
 
 
 Object.keys(db).forEach(modelName => {
