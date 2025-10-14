@@ -19,7 +19,7 @@ global.constants = require("./constants/index");
 const { initSocket } = require('./socket');
 const app = express();
 
-const allowedOrigins = ['https://visibeen.com', 'https://www.visibeen.com','https://api.visibeen.com','http://localhost:8089', 'http://localhost:3000',];
+const allowedOrigins = ['https://visibeen.com', 'https://www.visibeen.com','https://api.visibeen.com','http://localhost:8089', 'http://localhost:3000','http://localhost:3001'];
 app.use(
     cors({
         origin: allowedOrigins,
@@ -66,6 +66,8 @@ app.group('/api', (router) => {
 		groupV1.group('/admin', (groupRouter) => {
 			groupRouter.use('/role', require('./api/admin/user_role/index'))
 			groupRouter.use('/auth', require('./api/admin/User/index'));
+			// Permissions routes need to be accessible to all authenticated users for check-access
+			groupRouter.use('/permissions', [middleware.verifyAuthenticate], require('./api/admin/permissions/index'))
 			groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([1])]);
 			groupRouter.use('/employee', require('./api/admin/employee/index'));
 			groupRouter.use('/leads', require('./api/admin/lead/index'))
@@ -81,6 +83,6 @@ app.group('/api', (router) => {
 
 var httpServer = http.createServer(app);
 initSocket(httpServer);
-httpServer.listen(process.env.APP_PORT || 3000, function () {
+httpServer.listen(process.env.APP_PORT || 5000, function () {
 	console.log('Web app hosted at port: ' + httpServer.address().port)
 });
