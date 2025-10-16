@@ -27,7 +27,7 @@ module.exports = (sequelize, DataTypes) => {
       }
     },
     added_by: {
-      type: DataTypes.BIGINT,
+      type: DataTypes.INTEGER,
       allowNull: true,
       references: {
         model: 'users',

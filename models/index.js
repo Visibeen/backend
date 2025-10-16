@@ -26,6 +26,8 @@ const plan = require('./plan.js')(sequelize, Sequelize.DataTypes);
 const plan_feature = require('./plan_feature.js')(sequelize, Sequelize.DataTypes);
 const post_scheduler = require('./post_scheduler.js')(sequelize, Sequelize.DataTypes);
 const allowed_email = require('./allowed_email.js')(sequelize, Sequelize.DataTypes);
+const Task = require('./task.js')(sequelize, Sequelize.DataTypes);
+const GmbAccount = require('./gmb_account.js')(sequelize, Sequelize.DataTypes);
 
 // user and bussiness account relationship
 business_account.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
@@ -149,6 +151,8 @@ db.plan = plan;
 db.plan_feature = plan_feature;
 db.post_scheduler = post_scheduler;
 db.allowed_email = allowed_email;
+db.Task = Task;
+db.GmbAccount = GmbAccount;
 
 
 Object.keys(db).forEach(modelName => {

@@ -32,7 +32,7 @@ router.post('/add-lead', async function (req, res) {
             let leadData = await models.lead.create({
                 user_id: cUser.id,
                 lead_uid: leadUid,
-                employee_id: req.body.employee_id,
+                employee_id: req.body.employee_id || null,
                 contact_person: req.body.contact_person,
                 status: req.body.status,
                 lead_source: req.body.lead_source,

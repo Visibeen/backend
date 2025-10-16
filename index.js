@@ -62,12 +62,14 @@ app.group('/api', (router) => {
 			groupRouter.use('/payment', require('./api/customer/payment/index'));
 			groupRouter.use('/plan-feature', require('./api/customer/plan_feature/index'));
 			groupRouter.use('/post-scheduler', require('./api/customer/post_scheduler/index'));
+			groupRouter.use('/task', require('./api/customer/task/index'));
 		});
 		groupV1.group('/admin', (groupRouter) => {
 			groupRouter.use('/role', require('./api/admin/user_role/index'))
 			groupRouter.use('/auth', require('./api/admin/User/index'));
 			// Permissions routes need to be accessible to all authenticated users for check-access
 			groupRouter.use('/permissions', [middleware.verifyAuthenticate], require('./api/admin/permissions/index'))
+			groupRouter.use('/gmb-account', [middleware.verifyAuthenticate], require('./api/admin/gmb_account/index'))
 			groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([1])]);
 			groupRouter.use('/employee', require('./api/admin/employee/index'));
 			groupRouter.use('/leads', require('./api/admin/lead/index'))
@@ -77,6 +79,7 @@ app.group('/api', (router) => {
 			groupRouter.use('/holiday', require('./api/admin/holiday/index'))
 			groupRouter.use('/plan', require('./api/admin/plan/index'))
 			groupRouter.use('/plan-feature', require('./api/admin/plan_feature/index'))
+			groupRouter.use('/task', require('./api/admin/task/index'))
 		})
 	});
 });

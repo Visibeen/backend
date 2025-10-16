@@ -13,7 +13,7 @@ module.exports = {
         type: Sequelize.BIGINT
       },
       employee_id: {
-        type: Sequelize.BIGINT
+        type: Sequelize.INTEGER
       },
       is_tele: {
         type: Sequelize.BOOLEAN
