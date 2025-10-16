@@ -15,7 +15,7 @@ module.exports = {
         unique: true
       },
       added_by: {
-        type: Sequelize.BIGINT,
+        type: Sequelize.INTEGER,
         allowNull: true,
         references: {
           model: 'users',
