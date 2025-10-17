@@ -4,9 +4,10 @@
  * @author Senior Backend Developer
  */
 
-const { Task, User } = require('../../models');
+const { Task, User, GmbAccount } = require('../../models');
 const { Op } = require('sequelize');
 const REST = require('../../utils/REST');
+const whatsappService = require('../../services/whatsappService');
 
 /**
  * @desc    Get all tasks with pagination, filtering, and sorting
@@ -213,12 +214,38 @@ const createTask = async (req, res) => {
       });
     }
 
-    // Get profile name if profileId exists
+    // Get profile name and auto-sync phone number from GMB account
     let profileName = null;
+    let gmbPhoneNumber = null;
+    
     if (profileId) {
-      // You can fetch the actual profile name from GMB accounts here
-      // For now, we'll store the profileId
-      profileName = req.body.profileName || null;
+      // Fetch GMB account to get phone number and business name
+      const gmbAccount = await GmbAccount.findOne({
+        where: {
+          user_id: clientId,
+          location_id: profileId
+        }
+      });
+
+      if (gmbAccount) {
+        profileName = gmbAccount.business_name || req.body.profileName || null;
+        gmbPhoneNumber = gmbAccount.phone_number;
+
+        // Auto-sync phone number from GMB to user if user doesn't have one
+        if (gmbPhoneNumber && !client.phone_number) {
+          await client.update({ phone_number: gmbPhoneNumber });
+          console.log(`📱 Auto-synced phone number from GMB: ${gmbPhoneNumber} for user ${clientId}`);
+          // Refresh client data
+          await client.reload();
+        } else if (gmbPhoneNumber && client.phone_number !== gmbPhoneNumber) {
+          // Update if GMB has different phone number
+          await client.update({ phone_number: gmbPhoneNumber });
+          console.log(`🔄 Updated phone number from GMB: ${gmbPhoneNumber} for user ${clientId}`);
+          await client.reload();
+        }
+      } else {
+        profileName = req.body.profileName || null;
+      }
     }
 
     // Get creator ID from authenticated user
@@ -286,6 +313,25 @@ const createTask = async (req, res) => {
     });
 
     console.log(`Task created successfully: ${task.id} by user ${createdBy}`);
+
+    // Send WhatsApp notification to assigned client
+    if (client.phone_number) {
+      const whatsappResult = await whatsappService.sendTaskAssignmentNotification({
+        phoneNumber: client.phone_number,
+        userName: client.full_name,
+        taskTitle: title,
+        taskDescription: description,
+        priority: priority || 'medium',
+        dueDate: assignDate,
+        businessName: profileName
+      });
+      
+      if (whatsappResult.success) {
+        console.log(`📱 WhatsApp notification sent for task ${task.id}`);
+      }
+    } else {
+      console.log(`⚠️ No phone number for client ${clientId}, WhatsApp notification skipped`);
+    }
 
     return REST.success(res, { task: createdTask }, 'Task created successfully');
 
@@ -484,8 +530,17 @@ const updateTask = async (req, res) => {
       notes
     } = req.body;
 
-    // Find task
-    const task = await Task.findByPk(id);
+    // Find task with client info
+    const task = await Task.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: 'assignedClient',
+          attributes: ['id', 'email', 'full_name', 'phone_number'],
+          required: false
+        }
+      ]
+    });
 
     if (!task) {
       return res.status(404).json({
@@ -493,6 +548,9 @@ const updateTask = async (req, res) => {
         message: 'Task not found'
       });
     }
+
+    // Store old status for WhatsApp notification
+    const oldStatus = task.status;
 
     // Prepare update data
     const updateData = {
@@ -553,6 +611,22 @@ const updateTask = async (req, res) => {
     });
 
     console.log(`Task updated successfully: ${id} by user ${req.user?.id}`);
+
+    // Send WhatsApp notification if status changed
+    if (status !== undefined && oldStatus !== status && task.assignedClient?.phone_number) {
+      const whatsappResult = await whatsappService.sendTaskUpdateNotification({
+        phoneNumber: task.assignedClient.phone_number,
+        userName: task.assignedClient.full_name,
+        taskTitle: updatedTask.title,
+        oldStatus: oldStatus,
+        newStatus: status,
+        businessName: updatedTask.assigned_to_profile_name
+      });
+      
+      if (whatsappResult.success) {
+        console.log(`📱 WhatsApp status update notification sent for task ${id}`);
+      }
+    }
 
     return REST.success(res, { task: updatedTask }, 'Task updated successfully');
 
