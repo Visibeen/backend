@@ -9,6 +9,10 @@ const path = require('path');
 const https = require('https');
 const fileUpload = require('express-fileupload');
 const cron = require('node-cron');
+const rateLimit = require('express-rate-limit');
+const timeout = require('connect-timeout');
+const compression = require('compression');
+const helmet = require('helmet');
 const config = require('./config');
 const db = require('./config/db')
 const axios = require('axios')
@@ -20,6 +24,19 @@ const { initSocket } = require('./socket');
 const app = express();
 
 const allowedOrigins = ['https://visibeen.com', 'https://www.visibeen.com','https://api.visibeen.com','http://localhost:8089', 'http://localhost:3000','http://localhost:3001'];
+
+// Security headers with Helmet
+app.use(helmet({
+    contentSecurityPolicy: false, // Disable CSP for now (configure based on your needs)
+    crossOriginEmbedderPolicy: false
+}));
+
+// Enable gzip compression for all responses
+app.use(compression());
+
+// Request timeout - prevent long-running requests from blocking server
+app.use(timeout('30s'));
+
 app.use(
     cors({
         origin: allowedOrigins,
@@ -30,9 +47,42 @@ app.use(
 );
 
 app.options("*", cors({ origin: allowedOrigins, credentials: true }));
-app.use(express.json())
-app.use(bodyParser.urlencoded({ extended: true }));
+
+// Rate limiting to prevent DDoS attacks
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20, // Limit each IP to 20 login attempts per windowMs (increased for development)
+    message: 'Too many login attempts, please try again later.',
+    skipSuccessfulRequests: true, // Don't count successful requests
+});
+
+// Apply rate limiting to all API routes (only in production)
+if (process.env.NODE_ENV === 'production') {
+    app.use('/api/', apiLimiter);
+    
+    // Stricter rate limiting for authentication routes
+    app.use('/api/v1/customer/auth/login', authLimiter);
+    app.use('/api/v1/admin/auth/login', authLimiter);
+} else {
+    console.log('⚠️  Rate limiting disabled in development mode');
+}
+
+app.use(express.json({ limit: '10mb' })) // Limit JSON payload size
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(fileUpload({ createParentPath: true, limits: { fileSize: config.limit_file_size } }));
+
+// Timeout handler - must be after all routes
+app.use((req, res, next) => {
+    if (!req.timedout) next();
+});
 
 const middleware = require("./utils/middleware")
 app.get('/health', (req, res) => {

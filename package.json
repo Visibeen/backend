@@ -16,6 +16,8 @@
     "axios": "^1.3.4",
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.2",
+    "compression": "^1.8.1",
+    "connect-timeout": "^1.9.1",
     "const": "^1.0.0",
     "csv-parse": "^5.6.0",
     "csv-parser": "^3.2.0",
@@ -23,9 +25,11 @@
     "exceljs": "^4.4.0",
     "express-fileupload": "^1.4.1",
     "express-group-routes": "^1.1.0",
+    "express-rate-limit": "^8.1.0",
     "fcm-node": "^1.6.1",
     "firebase-admin": "^11.5.0",
     "generate-unique-id": "^2.0.3",
+    "helmet": "^8.1.0",
     "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.0",
     "moment": "^2.29.4",
@@ -48,7 +52,9 @@
     "streamifier": "^0.1.1",
     "string-format": "^2.0.0",
     "twilio": "^5.3.5",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "winston": "^3.18.3",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
