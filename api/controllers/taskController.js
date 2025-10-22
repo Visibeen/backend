@@ -323,8 +323,7 @@ const createTask = async (req, res) => {
         taskDescription: description,
         priority: priority || 'medium',
         dueDate: assignDate,
-        businessName: profileName,
-        taskId: task.id // Add task ID for direct link
+        businessName: profileName
       });
       
       if (whatsappResult.success) {
@@ -1069,54 +1068,42 @@ const bulkAssignTask = async (req, res) => {
       });
     }
 
-    // PERFORMANCE FIX: Use bulkCreate instead of loop to avoid N+1 queries
-    // This is 10-100x faster for large datasets
-    const tasksToCreate = targetProfiles.map(profile => ({
-      title,
-      description,
-      assigned_to_client_id: profile.clientId,
-      assigned_to_profile_id: profile.profileId,
-      assigned_to_profile_name: profile.profileName,
-      priority: priority || 'medium',
-      status: status || 'pending',
-      category,
-      estimated_hours: estimatedHours,
-      assign_date: assignDate,
-      assign_time: assignTime,
-      tags,
-      created_by: createdBy,
-      created_by_type: 'admin',
-      is_visible_to_client: true
-    }));
+    // Create tasks for all target profiles
+    const createdTasks = [];
+    const errors = [];
 
-    let createdTasks = [];
-    let errors = [];
+    for (const profile of targetProfiles) {
+      try {
+        const task = await Task.create({
+          title,
+          description,
+          assigned_to_client_id: profile.clientId,
+          assigned_to_profile_id: profile.profileId,
+          assigned_to_profile_name: profile.profileName,
+          priority: priority || 'medium',
+          status: status || 'pending',
+          category,
+          estimated_hours: estimatedHours,
+          assign_date: assignDate,
+          assign_time: assignTime,
+          tags,
+          created_by: createdBy,
+          created_by_type: 'admin',
+          is_visible_to_client: true
+        });
 
-    try {
-      // Bulk insert all tasks in a single query
-      createdTasks = await Task.bulkCreate(tasksToCreate, {
-        validate: true,
-        returning: true // Return created records
-      });
-      console.log(`✅ Bulk task assignment completed: ${createdTasks.length} tasks created in single query`);
-    } catch (error) {
-      console.error(`❌ Bulk create failed, falling back to individual creates:`, error.message);
-      
-      // Fallback to individual creates if bulk fails
-      for (const taskData of tasksToCreate) {
-        try {
-          const task = await Task.create(taskData);
-          createdTasks.push(task);
-        } catch (individualError) {
-          errors.push({
-            profileId: taskData.assigned_to_profile_id,
-            profileName: taskData.assigned_to_profile_name,
-            error: individualError.message
-          });
-        }
+        createdTasks.push(task);
+      } catch (error) {
+        console.error(`❌ Error creating task for profile ${profile.profileId}:`, error.message);
+        errors.push({
+          profileId: profile.profileId,
+          profileName: profile.profileName,
+          error: error.message
+        });
       }
-      console.log(`✅ Fallback completed: ${createdTasks.length} created, ${errors.length} errors`);
     }
+
+    console.log(`✅ Bulk task assignment completed: ${createdTasks.length} created, ${errors.length} errors`);
 
     return res.status(200).json({
       success: true,

@@ -5,35 +5,21 @@ let sequelize = new Sequelize(config.database_server.database, config.database_s
   host: config.database_server.host,
   port: config.database_server.port,
   dialect: 'mysql',
-  logging: process.env.NODE_ENV === 'development' ? console.log : false,
+  logging: false,
   freezeTableName: true,
   pool: {
-    max: 20,              // Maximum 20 connections (reasonable for production)
-    min: 5,               // Keep 5 warm connections ready
-    acquire: 60000,       // 60 seconds timeout for acquiring connection (increased)
-    idle: 10000,          // Release idle connections after 10 seconds
-    evict: 1000,          // Check for idle connections every 1 second
-    handleDisconnects: true
-  },
-  retry: {
-    max: 3,               // Retry failed connections 3 times
-    timeout: 5000         // Wait 5 seconds between retries (increased)
-  },
-  dialectOptions: {
-    connectTimeout: 60000 // 60 seconds connection timeout (increased for remote DB)
+    max: 100,
+    min: 0,
+    acquire: 1200000,
+    acquire: 1000000,
   }
 });
 
-// Don't authenticate immediately - let it connect lazily
-// This prevents startup failures if DB is temporarily unavailable
-sequelize.authenticate()
-  .then(() => {
-    console.log('✅ Database connected successfully');
-  })
-  .catch(err => {
-    console.error('⚠️  Database connection failed (will retry on first query):', err.message);
-    // Don't exit - let the app start and retry on first query
-  });
+sequelize.authenticate().then(() => {
+  console.log('Connect DB success.');
+}).catch(err => {
+  console.error('Connect DB failed:', err);
+});
 
 module.exports = {
   sequelize
