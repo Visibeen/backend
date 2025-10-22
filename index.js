@@ -34,6 +34,9 @@ app.use(express.json())
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(fileUpload({ createParentPath: true, limits: { fileSize: config.limit_file_size } }));
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 const middleware = require("./utils/middleware")
 app.get('/health', (req, res) => {
     res.status(200).send('OK');
@@ -80,6 +83,7 @@ app.group('/api', (router) => {
 			groupRouter.use('/plan', require('./api/admin/plan/index'))
 			groupRouter.use('/plan-feature', require('./api/admin/plan_feature/index'))
 			groupRouter.use('/task', require('./api/admin/task/index'))
+			groupRouter.use('/users', require('./api/routes/userRoutes'))
 		})
 	});
 });

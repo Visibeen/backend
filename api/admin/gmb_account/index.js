@@ -157,4 +157,71 @@ router.post('/sync', async (req, res) => {
   }
 });
 
+/**
+ * Get GMB profiles by user email
+ * GET /api/admin/gmb-account/user-by-email?email=user@example.com
+ */
+router.get('/user-by-email', async (req, res) => {
+  try {
+    const { email } = req.query;
+    console.log('📧 [user-by-email] Request received for email:', email);
+
+    if (!email) {
+      console.log('❌ [user-by-email] No email provided');
+      return REST.error(res, 'Email is required', 400);
+    }
+
+    // Find user by email
+    const user = await models.User.findOne({
+      where: { email: email.toLowerCase() }
+    });
+
+    console.log('👤 [user-by-email] User lookup result:', user ? `Found user ID: ${user.id}` : 'User not found');
+
+    if (!user) {
+      console.log('⚠️ [user-by-email] No user found, returning empty profiles');
+      return REST.success(res, { profiles: [] }, 'No user found with this email');
+    }
+
+    // Get all GMB accounts for this user
+    const accounts = await models.GmbAccount.findAll({
+      where: {
+        user_id: user.id,
+        is_active: true
+      },
+      order: [['created_at', 'DESC']]
+    });
+
+    console.log(`🏢 [user-by-email] Found ${accounts.length} GMB accounts for user ${user.id}`);
+    if (accounts.length > 0) {
+      console.log('📋 [user-by-email] Account details:', accounts.map(a => ({
+        location_id: a.location_id,
+        business_name: a.business_name,
+        is_active: a.is_active
+      })));
+    }
+
+    // Format profiles
+    const profiles = accounts.map(account => ({
+      id: account.location_id,
+      name: account.business_name || account.location_name,
+      title: account.business_name,
+      address: account.address,
+      category: account.category,
+      isVerified: account.is_verified
+    }));
+
+    console.log(`✅ [user-by-email] Returning ${profiles.length} profiles`);
+
+    return REST.success(res, { 
+      profiles,
+      userEmail: user.email,
+      userId: user.id
+    }, 'GMB profiles fetched successfully');
+  } catch (error) {
+    console.error('❌ [user-by-email] Error fetching GMB profiles by email:', error);
+    return REST.error(res, error.message, 500);
+  }
+});
+
 module.exports = router;

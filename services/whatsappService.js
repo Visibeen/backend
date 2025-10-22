@@ -16,6 +16,57 @@ class WhatsAppService {
     this.useTemplates = process.env.META_WHATSAPP_USE_TEMPLATES === 'true';
     this.taskNotificationTemplate = process.env.META_WHATSAPP_TASK_TEMPLATE || 'task_notification';
     this.statusUpdateTemplate = process.env.META_WHATSAPP_STATUS_TEMPLATE || 'task_status_update';
+    // Manual language code override (if auto-detection fails)
+    this.templateLanguage = process.env.META_WHATSAPP_TEMPLATE_LANGUAGE || null;
+  }
+
+  /**
+   * Get the correct language code for a template from Meta API
+   * @param {string} templateName - Name of the template
+   * @returns {Promise<string>} Language code (e.g., 'en', 'en_US', 'en_GB')
+   */
+  async getTemplateLanguage(templateName) {
+    try {
+      if (!this.businessAccountId || !this.accessToken) {
+        console.log('⚠️  Cannot fetch template language: Missing credentials, using default "en"');
+        return 'en';
+      }
+
+      console.log(`🔍 Fetching template metadata for: ${templateName}`);
+      
+      const response = await axios.get(
+        `${this.apiUrl}/${this.businessAccountId}/message_templates`,
+        { 
+          headers: { 
+            Authorization: `Bearer ${this.accessToken}` 
+          },
+          params: {
+            name: templateName // Filter by template name for efficiency
+          }
+        }
+      );
+
+      console.log(`📦 Templates API response:`, JSON.stringify(response.data, null, 2));
+
+      const template = response.data.data.find(t => t.name === templateName);
+      
+      if (template) {
+        console.log(`📋 Found template:`, JSON.stringify(template, null, 2));
+        
+        // Meta API returns language in different formats
+        const languageCode = template.language || template.language_code || 'en';
+        console.log(`✅ Auto-detected template language: ${languageCode} for template: ${templateName}`);
+        return languageCode;
+      }
+
+      console.log(`⚠️  Template "${templateName}" not found in API response, using default "en"`);
+      return 'en';
+
+    } catch (error) {
+      console.error('❌ Error fetching template language:', error.response?.data || error.message);
+      console.log('⚠️  Falling back to default language: "en"');
+      return 'en';
+    }
   }
 
   /**
@@ -60,6 +111,7 @@ class WhatsAppService {
    * @param {string} params.priority - Task priority (low/medium/high)
    * @param {string} params.dueDate - Task due date
    * @param {string} params.businessName - Business/profile name
+   * @param {string} params.taskId - Task ID for button URL parameter
    * @returns {Promise<Object>} API response
    */
   async sendTaskAssignmentNotification({
@@ -69,7 +121,8 @@ class WhatsAppService {
     taskDescription,
     priority,
     dueDate,
-    businessName
+    businessName,
+    taskId
   }) {
     try {
       // Validate required fields
@@ -134,6 +187,15 @@ _This is an automated message from Visibeen Task Management System._`;
       let requestBody;
       
       if (this.useTemplates) {
+        // Use manual override if set, otherwise auto-detect from Meta API
+        let languageCode;
+        if (this.templateLanguage) {
+          console.log(`🔧 Using manual language override: ${this.templateLanguage}`);
+          languageCode = this.templateLanguage;
+        } else {
+          languageCode = await this.getTemplateLanguage(this.taskNotificationTemplate);
+        }
+        
         // Use approved template message (production mode)
         requestBody = {
           messaging_product: 'whatsapp',
@@ -142,7 +204,7 @@ _This is an automated message from Visibeen Task Management System._`;
           template: {
             name: this.taskNotificationTemplate,
             language: {
-              code: 'en_US'
+              code: languageCode
             },
             components: [
               {
@@ -155,11 +217,20 @@ _This is an automated message from Visibeen Task Management System._`;
                   { type: 'text', text: businessName || 'N/A' },
                   { type: 'text', text: taskDescription || 'No description' }
                 ]
+              },
+              {
+                type: 'button',
+                sub_type: 'url',
+                index: '0',
+                parameters: [
+                  { type: 'text', text: taskId || '0' }
+                ]
               }
             ]
           }
         };
         console.log(`📋 Using template: ${this.taskNotificationTemplate}`);
+        console.log(`🌐 Language code: ${languageCode}`);
       } else {
         // Use free-form text message (test mode - only works within 24h window)
         requestBody = {
