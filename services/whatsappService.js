@@ -60,7 +60,6 @@ class WhatsAppService {
    * @param {string} params.priority - Task priority (low/medium/high)
    * @param {string} params.dueDate - Task due date
    * @param {string} params.businessName - Business/profile name
-   * @param {number} params.taskId - Task ID for direct link button (optional)
    * @returns {Promise<Object>} API response
    */
   async sendTaskAssignmentNotification({
@@ -70,8 +69,7 @@ class WhatsAppService {
     taskDescription,
     priority,
     dueDate,
-    businessName,
-    taskId
+    businessName
   }) {
     try {
       // Validate required fields
@@ -137,35 +135,6 @@ _This is an automated message from Visibeen Task Management System._`;
       
       if (this.useTemplates) {
         // Use approved template message (production mode)
-        const templateComponents = [
-          {
-            type: 'body',
-            parameters: [
-              { type: 'text', text: userName || 'there' },
-              { type: 'text', text: priorityEmoji },
-              { type: 'text', text: taskTitle },
-              { type: 'text', text: dueDateText.replace('\n📅 *Due Date:* ', '') || 'Not set' },
-              { type: 'text', text: businessName || 'N/A' },
-              { type: 'text', text: taskDescription || 'No description' }
-            ]
-          }
-        ];
-
-        // Add button component with task link if taskId is provided
-        if (taskId) {
-          templateComponents.push({
-            type: 'button',
-            sub_type: 'url',
-            index: '0',
-            parameters: [
-              {
-                type: 'text',
-                text: taskId.toString() // Dynamic URL parameter for task ID (e.g., ?taskId=162)
-              }
-            ]
-          });
-        }
-
         requestBody = {
           messaging_product: 'whatsapp',
           to: formattedPhone,
@@ -175,10 +144,22 @@ _This is an automated message from Visibeen Task Management System._`;
             language: {
               code: 'en_US'
             },
-            components: templateComponents
+            components: [
+              {
+                type: 'body',
+                parameters: [
+                  { type: 'text', text: userName || 'there' },
+                  { type: 'text', text: priorityEmoji },
+                  { type: 'text', text: taskTitle },
+                  { type: 'text', text: dueDateText.replace('\n📅 *Due Date:* ', '') || 'Not set' },
+                  { type: 'text', text: businessName || 'N/A' },
+                  { type: 'text', text: taskDescription || 'No description' }
+                ]
+              }
+            ]
           }
         };
-        console.log(`📋 Using template: ${this.taskNotificationTemplate}${taskId ? ' with task link' : ''}`);
+        console.log(`📋 Using template: ${this.taskNotificationTemplate}`);
       } else {
         // Use free-form text message (test mode - only works within 24h window)
         requestBody = {

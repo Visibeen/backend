@@ -7,31 +7,10 @@ const initSocket = (server) => {
         return;
     }
 
-    // SECURITY: Restrict WebSocket connections to allowed origins only
-    const allowedOrigins = [
-        'https://visibeen.com',
-        'https://www.visibeen.com',
-        'https://api.visibeen.com',
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://localhost:8089'
-    ];
-
     const corsOptions = {
-        origin: function (origin, callback) {
-            // Allow requests with no origin (like mobile apps or curl requests)
-            if (!origin) return callback(null, true);
-            
-            if (allowedOrigins.indexOf(origin) !== -1) {
-                callback(null, true);
-            } else {
-                console.warn('⚠️ WebSocket connection rejected from origin:', origin);
-                callback(new Error('Not allowed by CORS'));
-            }
-        },
+        origin: "*",
         methods: ["GET", "POST"],
         allowedHeaders: ["Content-Type"],
-        credentials: true
     };
 
     ioInstance = new Server(server, {
