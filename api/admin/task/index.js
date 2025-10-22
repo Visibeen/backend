@@ -7,6 +7,7 @@
 const express = require('express');
 const router = express.Router();
 const taskController = require('../../../api/controllers/taskController');
+const uploadRouter = require('./upload');
 
 /**
  * Task Management Routes
@@ -32,5 +33,8 @@ router.put('/bulk-update-status', taskController.bulkUpdateStatus);
 
 // DELETE routes
 router.delete('/delete-task/:id', taskController.deleteTask);
+
+// File upload routes
+router.use('/', uploadRouter);
 
 module.exports = router;

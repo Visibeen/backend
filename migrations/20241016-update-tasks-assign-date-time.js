@@ -10,21 +10,25 @@ module.exports = {
     const transaction = await queryInterface.sequelize.transaction();
     
     try {
-      // Check if due_date column exists
+      // Check if columns already exist
       const tableDescription = await queryInterface.describeTable('tasks');
       
-      // Add new columns
-      await queryInterface.addColumn('tasks', 'assign_date', {
-        type: Sequelize.DATEONLY,
-        allowNull: true,
-        comment: 'Date when task is assigned to GMB profile'
-      }, { transaction });
+      // Add new columns only if they don't exist
+      if (!tableDescription.assign_date) {
+        await queryInterface.addColumn('tasks', 'assign_date', {
+          type: Sequelize.DATEONLY,
+          allowNull: true,
+          comment: 'Date when task is assigned to GMB profile'
+        }, { transaction });
+      }
 
-      await queryInterface.addColumn('tasks', 'assign_time', {
-        type: Sequelize.TIME,
-        allowNull: true,
-        comment: 'Time when task is assigned to GMB profile'
-      }, { transaction });
+      if (!tableDescription.assign_time) {
+        await queryInterface.addColumn('tasks', 'assign_time', {
+          type: Sequelize.TIME,
+          allowNull: true,
+          comment: 'Time when task is assigned to GMB profile'
+        }, { transaction });
+      }
 
       // If due_date exists, migrate data to assign_date
       if (tableDescription.due_date) {

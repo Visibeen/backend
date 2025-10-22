@@ -226,6 +226,11 @@ module.exports = (sequelize, DataTypes) => {
     completed_at: {
       type: DataTypes.DATE,
       allowNull: true
+    },
+    attachments: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: 'Array of file paths/URLs for task attachments (photos, documents, etc.)'
     }
   }, {
     sequelize,

@@ -4,12 +4,17 @@ module.exports = ex = {};
 
 ex.verifyBarrier = async function (req, secretKey) {
 	if (!req.headers.authorization) return false;
-	return await auth.verifyToken(req.headers.authorization, secretKey);
+	// Strip "Bearer " prefix if present
+	const token = req.headers.authorization.replace(/^Bearer\s+/i, '');
+	return await auth.verifyToken(token, secretKey);
 };
 
 ex.decodeBarrier = async function (req, secretKey) {
-	if (req.headers.authorization)
-		return await auth.decodeToken(req.headers.authorization, secretKey);
+	if (req.headers.authorization) {
+		// Strip "Bearer " prefix if present
+		const token = req.headers.authorization.replace(/^Bearer\s+/i, '');
+		return await auth.decodeToken(token, secretKey);
+	}
 	return null;
 };
 

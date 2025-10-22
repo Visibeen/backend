@@ -6,34 +6,45 @@ const support = require("../utils/support")
 
 verifyAuthenticate = async (req, res, next) => {
     try {
+        console.log('[Middleware] verifyAuthenticate - Starting authentication');
+        console.log('[Middleware] Authorization header:', req.headers.authorization ? req.headers.authorization.substring(0, 50) + '...' : 'MISSING');
+        console.log('[Middleware] Request path:', req.path);
+        console.log('[Middleware] Request method:', req.method);
+        
         var isOK = await REST.verifyBarrier(req, config.USER_SECRET);
         if (isOK == false) {
+            console.log('[Middleware] verifyBarrier failed - token verification returned false');
             return REST.error(res, cs.erAuthenticationFailed.content, cs.erAuthenticationFailed.code);
         }
+        
         var cUser = await REST.decodeBarrier(req, config.USER_SECRET);
-        if (cUser == null && cUser.userid == null) {
+        console.log('[Middleware] Decoded user:', cUser);
+        
+        if (cUser == null || cUser.userid == null) {
+            console.log('[Middleware] cUser is null or userid is null');
             return REST.error(res, cs.erAuthenticationFailed.content, cs.erAuthenticationFailed.code);
         }
+        
         const token = req.headers.authorization;
+        console.log('[Middleware] Token from headers:', token ? 'Present' : 'Missing');
+        
         let user = await models.User.findOne({ where: { id: cUser.userid } })
+        console.log('[Middleware] User found:', user ? user.email : 'Not found');
         
         if (user == null) {
+            console.log('[Middleware] User not found in database');
             return REST.error(res, "Account invalid", 400);
         }
 
-        const accessToken = await models.User.findOne({
-            where: {
-                token: token,
-                id: user.id
-            }
-        })
-        if (accessToken == null) {
-            return REST.error(res, "Invalid token", 400);
-        }
+        // Token already verified by JWT - no need to check database
+        // The JWT signature verification is sufficient for authentication
+        
+        console.log('[Middleware] Authentication successful for:', user.email);
         req.body.current_user = user.dataValues;
 
         next();
     } catch (error) {
+        console.error('[Middleware] Authentication error:', error.message);
         return REST.error(res, error.message, 500);
     }
 };

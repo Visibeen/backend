@@ -10,22 +10,30 @@ module.exports = {
     const transaction = await queryInterface.sequelize.transaction();
     
     try {
-      // Add is_visible_to_client column
-      await queryInterface.addColumn('tasks', 'is_visible_to_client', {
-        type: Sequelize.BOOLEAN,
-        allowNull: false,
-        defaultValue: true,
-        comment: 'Whether task is visible to client on TaskManagement page'
-      }, { transaction });
+      // Check if column already exists
+      const tableDescription = await queryInterface.describeTable('tasks');
+      
+      if (!tableDescription.is_visible_to_client) {
+        // Add is_visible_to_client column only if it doesn't exist
+        await queryInterface.addColumn('tasks', 'is_visible_to_client', {
+          type: Sequelize.BOOLEAN,
+          allowNull: false,
+          defaultValue: true,
+          comment: 'Whether task is visible to client on TaskManagement page'
+        }, { transaction });
 
-      // Set all existing tasks as visible
-      await queryInterface.sequelize.query(
-        `UPDATE tasks SET is_visible_to_client = true WHERE is_visible_to_client IS NULL`,
-        { transaction }
-      );
+        // Set all existing tasks as visible
+        await queryInterface.sequelize.query(
+          `UPDATE tasks SET is_visible_to_client = true WHERE is_visible_to_client IS NULL`,
+          { transaction }
+        );
+
+        console.log('✅ Migration completed: Added is_visible_to_client to tasks table');
+      } else {
+        console.log('⏭️  Column is_visible_to_client already exists, skipping');
+      }
 
       await transaction.commit();
-      console.log('✅ Migration completed: Added is_visible_to_client to tasks table');
     } catch (error) {
       await transaction.rollback();
       console.error('❌ Migration failed:', error);

@@ -184,7 +184,8 @@ const createTask = async (req, res) => {
       category,
       estimatedHours,
       tags,
-      notes
+      notes,
+      attachments // array of file paths
     } = req.body;
 
     // Validate required fields
@@ -291,6 +292,7 @@ const createTask = async (req, res) => {
       estimated_hours: estimatedHours || null,
       tags: tags?.trim() || null,
       notes: notes?.trim() || null,
+      attachments: attachments && attachments.length > 0 ? JSON.stringify(attachments) : null,
       created_by: createdBy
     });
 
@@ -323,7 +325,8 @@ const createTask = async (req, res) => {
         taskDescription: description,
         priority: priority || 'medium',
         dueDate: assignDate,
-        businessName: profileName
+        businessName: profileName,
+        taskId: task.id.toString()
       });
       
       if (whatsappResult.success) {
@@ -1002,6 +1005,7 @@ const bulkAssignTask = async (req, res) => {
       assignDate,
       assignTime,
       tags,
+      attachments, // array of file paths
       assignToAll, // true = assign to all users
       selectedClients, // array of client IDs
       selectedProfiles // array of profile IDs
@@ -1020,17 +1024,18 @@ const bulkAssignTask = async (req, res) => {
       title,
       assignToAll,
       selectedClientsCount: selectedClients?.length || 0,
-      selectedProfilesCount: selectedProfiles?.length || 0
+      selectedProfilesCount: selectedProfiles?.length || 0,
+      attachmentsCount: attachments?.length || 0
     });
 
     let targetProfiles = [];
 
     if (assignToAll) {
       // Get all GMB accounts from database
-      const allAccounts = await db.GMBAccount.findAll({
+      const allAccounts = await GmbAccount.findAll({
         attributes: ['id', 'user_id', 'location_id', 'business_name'],
         where: {
-          location_id: { [db.Sequelize.Op.ne]: null }
+          location_id: { [Op.ne]: null }
         }
       });
 
@@ -1046,11 +1051,11 @@ const bulkAssignTask = async (req, res) => {
       targetProfiles = selectedProfiles;
     } else if (selectedClients && selectedClients.length > 0) {
       // Get all profiles for selected clients
-      const clientAccounts = await db.GMBAccount.findAll({
+      const clientAccounts = await GmbAccount.findAll({
         attributes: ['id', 'user_id', 'location_id', 'business_name'],
         where: {
-          user_id: { [db.Sequelize.Op.in]: selectedClients },
-          location_id: { [db.Sequelize.Op.ne]: null }
+          user_id: { [Op.in]: selectedClients },
+          location_id: { [Op.ne]: null }
         }
       });
 
@@ -1087,6 +1092,7 @@ const bulkAssignTask = async (req, res) => {
           assign_date: assignDate,
           assign_time: assignTime,
           tags,
+          attachments: attachments && attachments.length > 0 ? JSON.stringify(attachments) : null,
           created_by: createdBy,
           created_by_type: 'admin',
           is_visible_to_client: true

@@ -14,7 +14,7 @@ const ADMIN_ROLE_IDS = [1, 2, 4, 7, 12];
 | Check if current user has access to all features
 |---------------------------------------------------------------------------------
 */
-router.get('/check-access', async function (req, res) {
+router.get('/check-access', middleware.verifyAuthenticate, async function (req, res) {
     try {
         const cUser = req.body.current_user;
         if (!cUser) {
@@ -74,23 +74,10 @@ router.get('/check-access', async function (req, res) {
 | Get all allowed emails (Admin only)
 |---------------------------------------------------------------------------------
 */
-router.get('/get-allowed-emails', async function (req, res) {
+router.get('/get-allowed-emails', middleware.verifyAuthenticate, middleware.isAdminOrSuperAdmin, async function (req, res) {
     try {
-        // Check authentication first
+        // Middleware already verified authentication and admin status
         const cUser = req.body.current_user;
-        if (!cUser) {
-            return REST.error(res, "Unauthorized - Please login", 401);
-        }
-
-        // Check if user is admin
-        const user = await models.User.findOne({ where: { id: cUser.id } });
-        if (!user) {
-            return REST.error(res, "User not found", 404);
-        }
-
-        if (!ADMIN_ROLE_IDS.includes(user.role_id) && user.email !== SUPER_ADMIN_EMAIL) {
-            return REST.error(res, "Only admins can view allowed emails", 403);
-        }
 
         const allowedEmails = await models.allowed_email.findAll({
             include: [
@@ -119,23 +106,10 @@ router.get('/get-allowed-emails', async function (req, res) {
 | Add email to allowed list (Admin only)
 |---------------------------------------------------------------------------------
 */
-router.post('/add-email', async function (req, res) {
+router.post('/add-email', middleware.verifyAuthenticate, middleware.isAdminOrSuperAdmin, async function (req, res) {
     try {
-        // Check authentication first
+        // Middleware already verified authentication and admin status
         const cUser = req.body.current_user;
-        if (!cUser) {
-            return REST.error(res, "Unauthorized - Please login", 401);
-        }
-
-        // Check if user is admin
-        const user = await models.User.findOne({ where: { id: cUser.id } });
-        if (!user) {
-            return REST.error(res, "User not found", 404);
-        }
-
-        if (!ADMIN_ROLE_IDS.includes(user.role_id) && user.email !== SUPER_ADMIN_EMAIL) {
-            return REST.error(res, "Only admins can add emails", 403);
-        }
 
         const validationRules = {
             email: "required|email"
@@ -178,23 +152,10 @@ router.post('/add-email', async function (req, res) {
 | Remove email from allowed list (Admin only)
 |---------------------------------------------------------------------------------
 */
-router.post('/remove-email', async function (req, res) {
+router.post('/remove-email', middleware.verifyAuthenticate, middleware.isAdminOrSuperAdmin, async function (req, res) {
     try {
-        // Check authentication first
+        // Middleware already verified authentication and admin status
         const cUser = req.body.current_user;
-        if (!cUser) {
-            return REST.error(res, "Unauthorized - Please login", 401);
-        }
-
-        // Check if user is admin
-        const user = await models.User.findOne({ where: { id: cUser.id } });
-        if (!user) {
-            return REST.error(res, "User not found", 404);
-        }
-
-        if (!ADMIN_ROLE_IDS.includes(user.role_id) && user.email !== SUPER_ADMIN_EMAIL) {
-            return REST.error(res, "Only admins can remove emails", 403);
-        }
 
         const validationRules = {
             email: "required|email"
@@ -219,6 +180,83 @@ router.post('/remove-email', async function (req, res) {
         return REST.success(res, {
             email: emailToRemove
         }, 'Email removed successfully');
+
+    } catch (error) {
+        return REST.error(res, error.message, 500);
+    }
+});
+
+/*
+|---------------------------------------------------------------------------------
+| Get profile permissions for an email (Admin only)
+|---------------------------------------------------------------------------------
+*/
+router.get('/get-profile-permissions', middleware.verifyAuthenticate, middleware.isAdminOrSuperAdmin, async function (req, res) {
+    try {
+        const { email } = req.query;
+        
+        if (!email) {
+            return REST.error(res, "Email is required", 400);
+        }
+
+        const permissions = await models.profile_permission.findAll({
+            where: { email: email.toLowerCase() }
+        });
+
+        const profileIds = permissions.map(p => p.profile_id);
+
+        return REST.success(res, {
+            email,
+            profileIds,
+            count: profileIds.length
+        }, 'Profile permissions fetched successfully');
+
+    } catch (error) {
+        return REST.error(res, error.message, 500);
+    }
+});
+
+/*
+|---------------------------------------------------------------------------------
+| Update profile permissions for an email (Admin only)
+|---------------------------------------------------------------------------------
+*/
+router.post('/update-profile-permissions', middleware.verifyAuthenticate, middleware.isAdminOrSuperAdmin, async function (req, res) {
+    try {
+        const cUser = req.body.current_user;
+        const { email, profileIds } = req.body;
+
+        if (!email) {
+            return REST.error(res, "Email is required", 400);
+        }
+
+        if (!Array.isArray(profileIds)) {
+            return REST.error(res, "profileIds must be an array", 400);
+        }
+
+        const emailLower = email.toLowerCase();
+
+        // Delete existing permissions for this email
+        await models.profile_permission.destroy({
+            where: { email: emailLower }
+        });
+
+        // Add new permissions
+        if (profileIds.length > 0) {
+            const permissionsToCreate = profileIds.map(profileId => ({
+                email: emailLower,
+                profile_id: profileId,
+                added_by: cUser.id
+            }));
+
+            await models.profile_permission.bulkCreate(permissionsToCreate);
+        }
+
+        return REST.success(res, {
+            email: emailLower,
+            profileIds,
+            count: profileIds.length
+        }, 'Profile permissions updated successfully');
 
     } catch (error) {
         return REST.error(res, error.message, 500);
