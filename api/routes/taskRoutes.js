@@ -78,4 +78,13 @@ router.get('/statistics', isAdmin, taskController.getTaskStatistics);
  */
 router.put('/bulk-update-status', isAdmin, taskController.bulkUpdateStatus);
 
+/**
+ * @route   POST /api/admin/tasks/upload-photo-to-gmb
+ * @desc    Upload task photo to GMB profile
+ * @access  Admin
+ * @body    accountId, locationId, category, taskId (optional)
+ * @files   photo (image file)
+ */
+router.post('/upload-photo-to-gmb', isAdmin, taskController.uploadTaskPhotoToGMB);
+
 module.exports = router;

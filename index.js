@@ -50,6 +50,8 @@ app.group('/api', (router) => {
 	router.use("/health", require("./api/health"));
 	router.group('/v1', (groupV1) => {
 		groupV1.use('/errors', require("./api/errors"));
+		groupV1.use('/gmb', require("./api/routes/gmbRoutes"));
+		groupV1.use('/post-scheduler', require("./api/routes/postSchedulerRoutes"));
 		groupV1.group('/customer', (groupRouter) => {
 			groupRouter.use('/auth', require('./api/customer/auth/index'));
 			groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([3])]);
