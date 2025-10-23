@@ -199,6 +199,13 @@ const createTask = async (req, res) => {
     // Parse assignedTo (format: "clientId-profileId")
     const [clientId, profileId] = assignedTo.toString().split('-');
 
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('📝 [CREATE TASK] Admin creating task');
+    console.log('   assignedTo:', assignedTo);
+    console.log('   Parsed clientId:', clientId);
+    console.log('   Parsed profileId:', profileId);
+    console.log('═══════════════════════════════════════════════════════');
+
     if (!clientId) {
       return res.status(400).json({
         success: false,
@@ -296,6 +303,15 @@ const createTask = async (req, res) => {
       created_by: createdBy
     });
 
+    console.log('✅ [CREATE TASK] Admin task created successfully:', {
+      taskId: task.id,
+      title: task.title,
+      clientId: task.assigned_to_client_id,
+      profileId: task.assigned_to_profile_id,
+      createdByType: task.created_by_type
+    });
+    console.log('═══════════════════════════════════════════════════════');
+
     // Fetch the created task with associations
     const createdTask = await Task.findByPk(task.id, {
       include: [
@@ -380,7 +396,13 @@ const saveAITasks = async (req, res) => {
       });
     }
 
-    console.log(`📥 Saving ${tasks.length} AI tasks for profile: ${profileId}`);
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('🤖 [SAVE AI TASKS] Client saving AI tasks');
+    console.log(`   Number of tasks: ${tasks.length}`);
+    console.log(`   clientId: ${clientId}`);
+    console.log(`   profileId: ${profileId}`);
+    console.log(`   profileName: ${profileName}`);
+    console.log('═══════════════════════════════════════════════════════');
 
     const savedTasks = [];
     const errors = [];
@@ -656,7 +678,6 @@ const deleteTask = async (req, res) => {
     const { id } = req.params;
 
     const task = await Task.findByPk(id);
-
     if (!task) {
       return res.status(404).json({
         success: false,
@@ -664,9 +685,19 @@ const deleteTask = async (req, res) => {
       });
     }
 
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('🗑️ [DELETE TASK] Deleting task:', {
+      taskId: task.id,
+      title: task.title,
+      createdByType: task.created_by_type,
+      profileId: task.assigned_to_profile_id,
+      deletedBy: req.user?.id
+    });
+
     await task.destroy();
 
-    console.log(`Task deleted successfully: ${id} by user ${req.user?.id}`);
+    console.log(`✅ [DELETE TASK] Task deleted successfully: ${id}`);
+    console.log('═══════════════════════════════════════════════════════');
 
     return REST.success(res, {}, 'Task deleted successfully');
 
@@ -1128,6 +1159,142 @@ const bulkAssignTask = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Upload task photo to GMB
+ * @route   POST /api/admin/tasks/upload-photo-to-gmb
+ * @access  Admin
+ */
+const uploadTaskPhotoToGMB = async (req, res) => {
+  const axios = require('axios');
+  const fs = require('fs');
+  const path = require('path');
+  
+  try {
+    console.log('📸 [Task GMB Upload] Starting photo upload...');
+    
+    const { accountId, locationId, category = 'ADDITIONAL', taskId } = req.body;
+    const accessToken = req.headers.authorization?.replace('Bearer ', '');
+
+    // Validation
+    if (!accessToken) {
+      return REST.error(res, 'Access token is required', 401);
+    }
+
+    if (!accountId || !locationId) {
+      return REST.error(res, 'Account ID and Location ID are required', 400);
+    }
+
+    if (!req.files || !req.files.photo) {
+      return REST.error(res, 'Photo file is required', 400);
+    }
+
+    const photoFile = req.files.photo;
+    console.log('📷 [Task GMB Upload] Photo details:', {
+      name: photoFile.name,
+      size: photoFile.size,
+      mimetype: photoFile.mimetype
+    });
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(photoFile.mimetype)) {
+      return REST.error(res, 'Only JPG, PNG, and GIF images are allowed', 400);
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024;
+    if (photoFile.size > maxSize) {
+      return REST.error(res, 'Photo size must be less than 10MB', 400);
+    }
+
+    // Save photo temporarily
+    console.log('💾 [Task GMB Upload] Saving photo temporarily...');
+    const uploadsDir = path.join(__dirname, '../../uploads/temp');
+    
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    
+    const tempFileName = `gmb_task_${Date.now()}_${photoFile.name}`;
+    const tempFilePath = path.join(uploadsDir, tempFileName);
+    
+    fs.writeFileSync(tempFilePath, photoFile.data);
+    console.log('✅ [Task GMB Upload] Photo saved:', tempFileName);
+    
+    // Create public URL
+    const publicUrl = `${process.env.PUBLIC_URL || 'http://localhost:5000'}/uploads/temp/${tempFileName}`;
+    console.log('🔗 [Task GMB Upload] Public URL:', publicUrl);
+    
+    // Upload to GMB
+    console.log('🔄 [Task GMB Upload] Uploading to GMB...');
+    const createMediaUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/media`;
+    
+    const mediaData = {
+      mediaFormat: 'PHOTO',
+      locationAssociation: {
+        category: category
+      },
+      sourceUrl: publicUrl
+    };
+
+    const createMediaResponse = await axios.post(
+      createMediaUrl,
+      mediaData,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const mediaItem = createMediaResponse.data;
+    console.log('✅ [Task GMB Upload] Photo uploaded to GMB:', mediaItem.name);
+    
+    // Clean up temp file
+    try {
+      fs.unlinkSync(tempFilePath);
+      console.log('🗑️ [Task GMB Upload] Temporary file cleaned up');
+    } catch (cleanupError) {
+      console.warn('⚠️ [Task GMB Upload] Failed to clean up temp file:', cleanupError.message);
+    }
+
+    // Update task attachments if taskId provided
+    if (taskId) {
+      const task = await Task.findByPk(taskId);
+      if (task) {
+        const currentAttachments = task.attachments ? JSON.parse(task.attachments) : [];
+        currentAttachments.push(mediaItem.googleUrl || mediaItem.sourceUrl);
+        await task.update({ attachments: JSON.stringify(currentAttachments) });
+        console.log('✅ [Task GMB Upload] Task attachments updated');
+      }
+    }
+
+    return REST.success(res, {
+      mediaItem: {
+        name: mediaItem.name,
+        googleUrl: mediaItem.googleUrl,
+        sourceUrl: mediaItem.sourceUrl,
+        thumbnailUrl: mediaItem.thumbnailUrl
+      }
+    }, 'Photo uploaded to GMB successfully');
+
+  } catch (error) {
+    console.error('❌ [Task GMB Upload] Error:', error.message);
+    
+    if (error.response) {
+      console.error('❌ [Task GMB Upload] API Error:', error.response.data);
+      return REST.error(
+        res,
+        error.response.data?.error?.message || 'Failed to upload photo to GMB',
+        error.response.status
+      );
+    }
+
+    return REST.error(res, error.message || 'Failed to upload photo to GMB', 500);
+  }
+};
+
 module.exports = {
   getTasks,
   getTaskById,
@@ -1141,5 +1308,6 @@ module.exports = {
   deleteTask,
   getTasksByClient,
   getTaskStatistics,
-  bulkUpdateStatus
+  bulkUpdateStatus,
+  uploadTaskPhotoToGMB
 };
