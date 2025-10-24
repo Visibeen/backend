@@ -305,7 +305,343 @@ const uploadSinglePhoto = async (photoFile, accountId, locationId, category, acc
   return createMediaResponse.data;
 };
 
+/**
+ * Create GMB Local Post (appears in feed)
+ * POST /api/v1/gmb/create-local-post
+ * 
+ * This creates a post that appears in the GMB feed with optional photo
+ */
+const createLocalPost = async (req, res) => {
+  try {
+    console.log('📝 [GMB Local Post] Creating local post...');
+    
+    const { accountId, locationId, summary, topicType = 'STANDARD', actionType, actionUrl } = req.body;
+    const accessToken = req.headers.authorization?.replace('Bearer ', '');
+
+    // Validation
+    if (!accessToken) {
+      return REST.error(res, 'Access token is required', 401);
+    }
+
+    if (!accountId || !locationId) {
+      return REST.error(res, 'Account ID and Location ID are required', 400);
+    }
+
+    if (!summary || summary.trim().length === 0) {
+      return REST.error(res, 'Post summary is required', 400);
+    }
+
+    // Build post data
+    const postData = {
+      languageCode: 'en',
+      summary: summary.trim(),
+      topicType: topicType
+    };
+
+    // Handle photo upload if provided
+    if (req.files && req.files.photo) {
+      const photoFile = req.files.photo;
+      console.log('📷 [GMB Local Post] Photo provided:', photoFile.name);
+
+      // Validate file
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+      if (!allowedTypes.includes(photoFile.mimetype)) {
+        return REST.error(res, 'Only JPG, PNG, and GIF images are allowed', 400);
+      }
+
+      const maxSize = 10 * 1024 * 1024;
+      if (photoFile.size > maxSize) {
+        return REST.error(res, 'Photo size must be less than 10MB', 400);
+      }
+
+      // Upload photo first to get URL
+      console.log('📤 [GMB Local Post] Uploading photo to GMB...');
+      const mediaItem = await uploadSinglePhoto(photoFile, accountId, locationId, 'ADDITIONAL', accessToken);
+      
+      // Attach photo to post
+      postData.media = [
+        {
+          mediaFormat: 'PHOTO',
+          sourceUrl: mediaItem.googleUrl || mediaItem.sourceUrl
+        }
+      ];
+      
+      console.log('✅ [GMB Local Post] Photo attached to post');
+    }
+
+    // Add call to action if provided
+    if (actionType) {
+      postData.callToAction = {
+        actionType: actionType
+      };
+      if (actionUrl && actionType !== 'CALL') {
+        postData.callToAction.url = actionUrl;
+      }
+    }
+
+    // Create local post
+    console.log('🔄 [GMB Local Post] Creating post in GMB feed...');
+    const createPostUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/localPosts`;
+    
+    const createPostResponse = await axios.post(
+      createPostUrl,
+      postData,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const localPost = createPostResponse.data;
+    console.log('✅ [GMB Local Post] Post created successfully:', localPost.name);
+
+    return REST.success(res, {
+      localPost: {
+        name: localPost.name,
+        summary: localPost.summary,
+        topicType: localPost.topicType,
+        createTime: localPost.createTime,
+        updateTime: localPost.updateTime,
+        media: localPost.media,
+        callToAction: localPost.callToAction
+      }
+    }, 'Local post created successfully in GMB feed');
+
+  } catch (error) {
+    console.error('❌ [GMB Local Post] Error:', error.message);
+    
+    if (error.response) {
+      console.error('❌ [GMB Local Post] API Error:', {
+        status: error.response.status,
+        data: error.response.data
+      });
+      
+      return REST.error(
+        res, 
+        error.response.data?.error?.message || 'Failed to create local post', 
+        error.response.status
+      );
+    }
+
+    return REST.error(res, error.message || 'Failed to create local post', 500);
+  }
+};
+
+/**
+ * Upload video to GMB profile
+ * POST /api/v1/gmb/upload-video
+ * 
+ * This endpoint handles video upload to GMB API v4
+ * Videos appear in the media section of the GMB profile
+ */
+const uploadVideo = async (req, res) => {
+  try {
+    console.log('🎥 [GMB Video Upload] Starting video upload process...');
+    
+    const { accountId, locationId, category = 'ADDITIONAL' } = req.body;
+    const accessToken = req.headers.authorization?.replace('Bearer ', '');
+
+    console.log('🔍 [GMB Video Upload] Received credentials:', {
+      accountId,
+      locationId,
+      category,
+      hasAccessToken: !!accessToken
+    });
+
+    // Validation
+    if (!accessToken) {
+      console.error('❌ [GMB Video Upload] No access token provided');
+      return REST.error(res, 'Access token is required', 401);
+    }
+
+    if (!accountId || !locationId) {
+      console.error('❌ [GMB Video Upload] Missing account or location ID');
+      return REST.error(res, 'Account ID and Location ID are required', 400);
+    }
+
+    if (!req.files || !req.files.video) {
+      console.error('❌ [GMB Video Upload] No video file provided');
+      return REST.error(res, 'Video file is required', 400);
+    }
+
+    const videoFile = req.files.video;
+    console.log('🎬 [GMB Video Upload] Video details:', {
+      name: videoFile.name,
+      size: videoFile.size,
+      mimetype: videoFile.mimetype
+    });
+
+    // Validate file type
+    const allowedTypes = ['video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv'];
+    if (!allowedTypes.includes(videoFile.mimetype)) {
+      console.error('❌ [GMB Video Upload] Invalid file type:', videoFile.mimetype);
+      return REST.error(res, 'Only MP4, MPEG, MOV, AVI, and WMV videos are allowed', 400);
+    }
+
+    // Validate file size (max 100MB for videos)
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    if (videoFile.size > maxSize) {
+      console.error('❌ [GMB Video Upload] File too large:', videoFile.size);
+      return REST.error(res, 'Video size must be less than 100MB', 400);
+    }
+
+    // Save video temporarily
+    console.log('💾 [GMB Video Upload] Saving video temporarily...');
+    const uploadsDir = path.join(__dirname, '../../uploads/temp');
+    
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    
+    const tempFileName = `gmb_video_${Date.now()}_${videoFile.name}`;
+    const tempFilePath = path.join(uploadsDir, tempFileName);
+    
+    fs.writeFileSync(tempFilePath, videoFile.data);
+    console.log('✅ [GMB Video Upload] Video saved:', tempFileName);
+    
+    // Create public URL
+    const publicUrl = `${process.env.PUBLIC_URL || 'http://localhost:5000'}/uploads/temp/${tempFileName}`;
+    console.log('🔗 [GMB Video Upload] Public URL:', publicUrl);
+    
+    // Upload to GMB
+    console.log('🔄 [GMB Video Upload] Uploading video to GMB...');
+    const createMediaUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/media`;
+    
+    const mediaData = {
+      mediaFormat: 'VIDEO',
+      locationAssociation: {
+        category: category
+      },
+      sourceUrl: publicUrl
+    };
+
+    const createMediaResponse = await axios.post(
+      createMediaUrl,
+      mediaData,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const mediaItem = createMediaResponse.data;
+    console.log('✅ [GMB Video Upload] Video uploaded successfully to GMB:', mediaItem.name);
+    
+    // Clean up temporary file
+    try {
+      fs.unlinkSync(tempFilePath);
+      console.log('🗑️ [GMB Video Upload] Temporary file cleaned up');
+    } catch (cleanupError) {
+      console.warn('⚠️ [GMB Video Upload] Failed to clean up temp file:', cleanupError.message);
+    }
+
+    return REST.success(res, {
+      mediaItem: {
+        name: mediaItem.name,
+        mediaFormat: mediaItem.mediaFormat,
+        googleUrl: mediaItem.googleUrl,
+        sourceUrl: mediaItem.sourceUrl,
+        thumbnailUrl: mediaItem.thumbnailUrl,
+        createTime: mediaItem.createTime,
+        description: mediaItem.description,
+        locationAssociation: mediaItem.locationAssociation
+      }
+    }, 'Video uploaded to GMB successfully');
+
+  } catch (error) {
+    console.error('❌ [GMB Video Upload] Error uploading video:', error.message);
+    
+    if (error.response) {
+      console.error('❌ [GMB Video Upload] API Error Response:', {
+        status: error.response.status,
+        data: error.response.data
+      });
+      
+      return REST.error(
+        res, 
+        error.response.data?.error?.message || 'Failed to upload video to GMB', 
+        error.response.status
+      );
+    }
+
+    return REST.error(res, error.message || 'Failed to upload video to GMB', 500);
+  }
+};
+
+/**
+ * Delete media (photo/video) from GMB profile
+ * DELETE /api/v1/gmb/delete-media
+ */
+const deleteMedia = async (req, res) => {
+  try {
+    console.log('🗑️ [GMB Delete Media] Starting delete process...');
+    
+    const { accountId, locationId, mediaName } = req.body;
+    const accessToken = req.headers.authorization?.replace('Bearer ', '');
+
+    console.log('🔍 [GMB Delete Media] Received credentials:', {
+      accountId,
+      locationId,
+      mediaName,
+      hasAccessToken: !!accessToken
+    });
+
+    // Validation
+    if (!accessToken) {
+      console.error('❌ [GMB Delete Media] No access token provided');
+      return REST.error(res, 'Access token is required', 401);
+    }
+
+    if (!accountId || !locationId || !mediaName) {
+      console.error('❌ [GMB Delete Media] Missing required parameters');
+      return REST.error(res, 'Account ID, Location ID, and Media Name are required', 400);
+    }
+
+    // Delete media from GMB
+    console.log('🔄 [GMB Delete Media] Deleting from GMB...');
+    const deleteUrl = `https://mybusiness.googleapis.com/v4/${mediaName}`;
+    
+    await axios.delete(deleteUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+
+    console.log('✅ [GMB Delete Media] Media deleted successfully');
+
+    return REST.success(res, {
+      deleted: true,
+      mediaName
+    }, 'Media deleted from GMB successfully');
+
+  } catch (error) {
+    console.error('❌ [GMB Delete Media] Error:', error.message);
+    
+    if (error.response) {
+      console.error('❌ [GMB Delete Media] API Error:', {
+        status: error.response.status,
+        data: error.response.data
+      });
+      
+      return REST.error(
+        res, 
+        error.response.data?.error?.message || 'Failed to delete media', 
+        error.response.status
+      );
+    }
+
+    return REST.error(res, error.message || 'Failed to delete media', 500);
+  }
+};
+
 module.exports = {
   uploadPhoto,
-  uploadMultiplePhotos
+  uploadMultiplePhotos,
+  createLocalPost,
+  uploadVideo,
+  deleteMedia
 };
