@@ -20,4 +20,7 @@ router.post('/save-ai-tasks', taskController.saveAITasks);
 router.get('/my-tasks', taskController.getMyTasks);
 router.get('/profile-tasks', taskController.getProfileTasks);
 
+// PUT routes - customer can complete their own tasks
+router.put('/complete/:id', taskController.completeTask);
+
 module.exports = router;

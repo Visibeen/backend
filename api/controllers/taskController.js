@@ -552,7 +552,9 @@ const updateTask = async (req, res) => {
       estimatedHours,
       actualHours,
       tags,
-      notes
+      notes,
+      completed_at,
+      completion_data
     } = req.body;
 
     // Find task with client info
@@ -593,6 +595,8 @@ const updateTask = async (req, res) => {
     if (actualHours !== undefined) updateData.actual_hours = actualHours;
     if (tags !== undefined) updateData.tags = tags?.trim() || null;
     if (notes !== undefined) updateData.notes = notes?.trim() || null;
+    if (completed_at !== undefined) updateData.completed_at = completed_at;
+    if (completion_data !== undefined) updateData.completion_data = completion_data;
 
     // Handle assignedTo change
     if (assignedTo !== undefined) {
@@ -971,11 +975,26 @@ const getProfileTasks = async (req, res) => {
              taskNumericId === numericProfileId;
     });
 
-    console.log(`✅ Found ${filteredTasks.length} visible tasks for profile ${profileId}`);
+    // Deduplicate tasks by title + description to prevent showing duplicate tasks
+    const uniqueTasks = [];
+    const seenTasks = new Set();
+    
+    for (const task of filteredTasks) {
+      const taskKey = `${task.title}|${task.description}`.toLowerCase().trim();
+      
+      if (!seenTasks.has(taskKey)) {
+        seenTasks.add(taskKey);
+        uniqueTasks.push(task);
+      } else {
+        console.log(`⚠️ Skipping duplicate task: ${task.title} (ID: ${task.id})`);
+      }
+    }
+
+    console.log(`✅ Found ${filteredTasks.length} tasks, returning ${uniqueTasks.length} unique tasks for profile ${profileId}`);
 
     return res.status(200).json({
       success: true,
-      data: { tasks: filteredTasks }
+      data: { tasks: uniqueTasks }
     });
 
   } catch (error) {
@@ -1295,6 +1314,96 @@ const uploadTaskPhotoToGMB = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Complete task (Customer access)
+ * @route   PUT /api/customer/task/complete/:id
+ * @access  Customer
+ */
+const completeTask = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.body.current_user?.id || req.user?.id;
+    const { completed_at, completion_data } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+    }
+
+    // Find task and verify it belongs to this user
+    const task = await Task.findOne({
+      where: {
+        id: id,
+        assigned_to_client_id: userId
+      },
+      include: [
+        {
+          model: User,
+          as: 'assignedClient',
+          attributes: ['id', 'email', 'full_name', 'phone_number'],
+          required: false
+        }
+      ]
+    });
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found or you do not have permission to update it'
+      });
+    }
+
+    // Check if already completed
+    if (task.status === 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Task is already completed'
+      });
+    }
+
+    // Store old status for WhatsApp notification
+    const oldStatus = task.status;
+
+    // Update task to completed
+    await task.update({
+      status: 'completed',
+      completed_at: completed_at || new Date(),
+      completion_data: completion_data || null,
+      updated_by: userId
+    });
+
+    console.log(`✅ Task ${id} completed by customer ${userId}`);
+
+    // Send WhatsApp notification if phone number available
+    if (task.assignedClient?.phone_number) {
+      const whatsappResult = await whatsappService.sendTaskUpdateNotification({
+        phoneNumber: task.assignedClient.phone_number,
+        userName: task.assignedClient.full_name,
+        taskTitle: task.title,
+        oldStatus: oldStatus,
+        newStatus: 'completed',
+        businessName: task.assigned_to_profile_name
+      });
+      
+      if (whatsappResult.success) {
+        console.log(`📱 WhatsApp completion notification sent for task ${id}`);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: { task },
+      message: 'Task completed successfully'
+    });
+
+  } catch (error) {
+    console.error('Error in completeTask:', error);
+    return REST.error(res, error.message, 500);
+  }
+};
+
 module.exports = {
   getTasks,
   getTaskById,
@@ -1304,6 +1413,7 @@ module.exports = {
   getMyTasks,
   getProfileTasks,
   updateTask,
+  completeTask,
   toggleTaskVisibility,
   deleteTask,
   getTasksByClient,

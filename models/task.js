@@ -227,6 +227,11 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DATE,
       allowNull: true
     },
+    completion_data: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'JSON string containing task completion data (description, photos, hours, etc.)'
+    },
     attachments: {
       type: DataTypes.JSON,
       allowNull: true,
