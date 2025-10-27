@@ -118,22 +118,22 @@ router.post('/login', async function (req, res) {
 					account_type: data.account_type,
 					status: constants.USER.STATUSES.ACTIVE
 				};
-				const newUser = await models.sequelize.transaction(async (transaction) => {
-					return await models.User.create(userPayload, { transaction });
-				});
-				const token = auth.shortTermToken({ userid: newUser.id }, config.USER_SECRET);
-				await models.User.update({
-					token: token,
-					login_date: new Date()
-				}, { where: { id: newUser.id } });
+			const newUser = await models.sequelize.transaction(async (transaction) => {
+				return await models.User.create(userPayload, { transaction });
+			});
+			const token = auth.longTermToken({ userid: newUser.id }, config.USER_SECRET, 365);
+			await models.User.update({
+				token: token,
+				login_date: new Date()
+			}, { where: { id: newUser.id } });
 				const finalUser = await models.User.findOne({ where: { id: newUser.id } });
 				return REST.success(res, finalUser, 'Login successful.');
-			} else {
-				const token1 = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
-				await models.User.update({
-					token: token1,
-					login_date: new Date()
-				}, { where: { id: user.id } });
+		} else {
+			const token1 = auth.longTermToken({ userid: user.id }, config.USER_SECRET, 365);
+			await models.User.update({
+				token: token1,
+				login_date: new Date()
+			}, { where: { id: user.id } });
 				const finalUser1 = await models.User.findOne({ where: { id: user.id } });
 				return REST.success(res, finalUser1, 'Login successful.');
 			}
@@ -178,13 +178,13 @@ router.post('/login', async function (req, res) {
 				needsGoogleAuth = true;
 			}
 
-			const token = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
-			await models.User.update({
-				token: token,
-				login_date: new Date()
-			}, { where: { id: user.id } });
+		const token = auth.longTermToken({ userid: user.id }, config.USER_SECRET, 365);
+		await models.User.update({
+			token: token,
+			login_date: new Date()
+		}, { where: { id: user.id } });
 
-			const finalUser = await models.User.findOne({ where: { id: user.id } });
+		const finalUser = await models.User.findOne({ where: { id: user.id } });
 			return REST.success(res, {
 				user: finalUser,
 				hasGMBAccess: hasGMBAccess,
@@ -236,10 +236,10 @@ router.post('/google-login', async function (req, res) {
 				last_login: new Date()
 			}, { where: { id: user.id } });
 
-			user = await models.User.findOne({ where: { id: user.id } });
-		}
-		const token = auth.shortTermToken({ userid: user.id }, config.USER_SECRET);
-		await models.User.update({ token }, { where: { id: user.id } });
+		user = await models.User.findOne({ where: { id: user.id } });
+	}
+	const token = auth.longTermToken({ userid: user.id }, config.USER_SECRET, 365);
+	await models.User.update({ token }, { where: { id: user.id } });
 		const finalUser = await models.User.findOne({ where: { id: user.id } });
 		return REST.success(res, {
 			user: finalUser,

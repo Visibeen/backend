@@ -638,10 +638,116 @@ const deleteMedia = async (req, res) => {
   }
 };
 
+/**
+ * Update GMB Location (e.g., messaging URI for WhatsApp)
+ * PATCH /api/v1/gmb/update-location
+ */
+const updateLocation = async (req, res) => {
+  try {
+    console.log('📝 [GMB Update Location] Starting location update...');
+    
+    const { accountId, locationId, messagingUri, websiteUri, phoneNumber } = req.body;
+    const accessToken = req.headers.authorization?.replace('Bearer ', '');
+
+    console.log('🔍 [GMB Update Location] Received data:', {
+      accountId,
+      locationId,
+      messagingUri,
+      websiteUri,
+      phoneNumber,
+      hasAccessToken: !!accessToken
+    });
+
+    // Validation
+    if (!accessToken) {
+      console.error('❌ [GMB Update Location] No access token provided');
+      return REST.error(res, 'Access token is required', 401);
+    }
+
+    if (!accountId || !locationId) {
+      console.error('❌ [GMB Update Location] Missing account or location ID');
+      return REST.error(res, 'Account ID and Location ID are required', 400);
+    }
+
+    // Build update data
+    const updateData = {};
+    const updateMask = [];
+
+    if (messagingUri !== undefined) {
+      updateData.messaging = {
+        whatsApp: {
+          uri: messagingUri
+        }
+      };
+      updateMask.push('messaging.whatsApp.uri');
+    }
+
+    if (websiteUri !== undefined) {
+      updateData.websiteUri = websiteUri;
+      updateMask.push('websiteUri');
+    }
+
+    if (phoneNumber !== undefined) {
+      updateData.primaryPhone = phoneNumber;
+      updateMask.push('primaryPhone');
+    }
+
+    if (updateMask.length === 0) {
+      return REST.error(res, 'No fields to update provided', 400);
+    }
+
+    // Update location in GMB
+    console.log('🔄 [GMB Update Location] Updating location in GMB...');
+    const updateUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/${accountId}/locations/${locationId}?updateMask=${updateMask.join(',')}`;
+    
+    const updateResponse = await axios.patch(
+      updateUrl,
+      updateData,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const updatedLocation = updateResponse.data;
+    console.log('✅ [GMB Update Location] Location updated successfully');
+
+    return REST.success(res, {
+      location: {
+        name: updatedLocation.name,
+        messaging: updatedLocation.messaging,
+        websiteUri: updatedLocation.websiteUri,
+        primaryPhone: updatedLocation.primaryPhone
+      }
+    }, 'GMB location updated successfully');
+
+  } catch (error) {
+    console.error('❌ [GMB Update Location] Error:', error.message);
+    
+    if (error.response) {
+      console.error('❌ [GMB Update Location] API Error:', {
+        status: error.response.status,
+        data: error.response.data
+      });
+      
+      return REST.error(
+        res, 
+        error.response.data?.error?.message || 'Failed to update location', 
+        error.response.status
+      );
+    }
+
+    return REST.error(res, error.message || 'Failed to update location', 500);
+  }
+};
+
 module.exports = {
   uploadPhoto,
   uploadMultiplePhotos,
   createLocalPost,
   uploadVideo,
-  deleteMedia
+  deleteMedia,
+  updateLocation
 };

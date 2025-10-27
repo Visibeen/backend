@@ -8,6 +8,52 @@ const { Task, User, GmbAccount } = require('../../models');
 const { Op } = require('sequelize');
 const REST = require('../../utils/REST');
 const whatsappService = require('../../services/whatsappService');
+const emailService = require('../../services/emailService');
+
+/**
+ * Helper function to normalize task title for duplicate detection
+ */
+const normalizeTaskTitle = (title) => {
+  return title
+    .toLowerCase()
+    .replace(/\d+/g, 'X') // Replace numbers with X
+    .replace(/[^\w\s]/g, '') // Remove punctuation
+    .replace(/\s+/g, ' ') // Normalize spaces
+    .trim();
+};
+
+/**
+ * Check if a similar task already exists for this client/profile
+ */
+const checkForDuplicateTask = async (title, clientId, profileId) => {
+  try {
+    const normalizedTitle = normalizeTaskTitle(title);
+    
+    // Get all pending tasks for this client/profile
+    const existingTasks = await Task.findAll({
+      where: {
+        assigned_to_client_id: clientId,
+        assigned_to_profile_id: profileId || null,
+        status: { [Op.ne]: 'completed' } // Only check pending tasks
+      },
+      attributes: ['id', 'title']
+    });
+    
+    // Check if any existing task has a similar normalized title
+    for (const task of existingTasks) {
+      const existingNormalized = normalizeTaskTitle(task.title);
+      if (existingNormalized === normalizedTitle) {
+        console.log(`🚫 Duplicate task detected: "${title}" matches existing task "${task.title}"`);
+        return true;
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking for duplicate tasks:', error);
+    return false; // Continue with task creation on error
+  }
+};
 
 /**
  * @desc    Get all tasks with pagination, filtering, and sorting
@@ -259,6 +305,15 @@ const createTask = async (req, res) => {
     // Get creator ID from authenticated user
     const createdBy = req.user?.id || null;
 
+    // Check for duplicate tasks before creating
+    const isDuplicate = await checkForDuplicateTask(title, clientId, profileId);
+    if (isDuplicate) {
+      return res.status(400).json({
+        success: false,
+        message: 'A similar task already exists for this client. Please check existing tasks before creating a new one.'
+      });
+    }
+
     // Check if we need to replace an AI task
     // If admin is creating a task with assign_date, check for AI tasks to replace
     if (assignDate) {
@@ -350,6 +405,27 @@ const createTask = async (req, res) => {
       }
     } else {
       console.log(`⚠️ No phone number for client ${clientId}, WhatsApp notification skipped`);
+    }
+
+    // Send Email notification if client has email
+    if (client.email) {
+      try {
+        await emailService.sendTaskAssignmentEmail({
+          to: client.email,
+          userName: client.full_name || client.name,
+          taskTitle: title,
+          taskDescription: description,
+          priority: priority || 'medium',
+          dueDate: assignDate,
+          businessName: profileName,
+          taskId: task.id?.toString()
+        });
+        console.log(`✉️ Email assignment notification sent for task ${task.id}`);
+      } catch (e) {
+        console.warn('⚠️ Email assignment send failed:', e.message);
+      }
+    } else {
+      console.log(`⚠️ No email for client ${clientId}, email notification skipped`);
     }
 
     return REST.success(res, { task: createdTask }, 'Task created successfully');
@@ -654,6 +730,23 @@ const updateTask = async (req, res) => {
       
       if (whatsappResult.success) {
         console.log(`📱 WhatsApp status update notification sent for task ${id}`);
+      }
+    }
+
+    // Send Email notification if status changed and email exists
+    if (status !== undefined && oldStatus !== status && task.assignedClient?.email) {
+      try {
+        await emailService.sendTaskUpdateEmail({
+          to: task.assignedClient.email,
+          userName: task.assignedClient.full_name || task.assignedClient.name,
+          taskTitle: updatedTask.title,
+          oldStatus,
+          newStatus: status,
+          businessName: updatedTask.assigned_to_profile_name
+        });
+        console.log(`✉️ Email status update notification sent for task ${id}`);
+      } catch (e) {
+        console.warn('⚠️ Email status update send failed:', e.message);
       }
     }
 
@@ -1129,6 +1222,18 @@ const bulkAssignTask = async (req, res) => {
 
     for (const profile of targetProfiles) {
       try {
+        // Check for duplicate task
+        const isDuplicate = await checkForDuplicateTask(title, profile.clientId, profile.profileId);
+        if (isDuplicate) {
+          console.log(`⚠️ Skipping duplicate task for profile ${profile.profileId} (${profile.profileName})`);
+          errors.push({
+            profileId: profile.profileId,
+            profileName: profile.profileName,
+            error: 'Duplicate task - similar task already exists'
+          });
+          continue; // Skip this profile
+        }
+
         const task = await Task.create({
           title,
           description,
@@ -1389,6 +1494,23 @@ const completeTask = async (req, res) => {
       
       if (whatsappResult.success) {
         console.log(`📱 WhatsApp completion notification sent for task ${id}`);
+      }
+    }
+
+    // Send Email notification on completion if email exists
+    if (task.assignedClient?.email) {
+      try {
+        await emailService.sendTaskUpdateEmail({
+          to: task.assignedClient.email,
+          userName: task.assignedClient.full_name || task.assignedClient.name,
+          taskTitle: task.title,
+          oldStatus,
+          newStatus: 'completed',
+          businessName: task.assigned_to_profile_name
+        });
+        console.log(`✉️ Email completion notification sent for task ${id}`);
+      } catch (e) {
+        console.warn('⚠️ Email completion send failed:', e.message);
       }
     }
 
