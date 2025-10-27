@@ -71,8 +71,26 @@ const postTasks = async ({ type, tasks, timeout = 20000 }) => {
     }
 };
 
+// Lightweight email wrapper used by some routes (e.g., contact us)
+// Prefer using services/emailService for app features
+const emailService = (() => {
+    try {
+        return require('../services/emailService');
+    } catch (e) {
+        return null;
+    }
+})();
+
+const sendMail = async (to, message, subject = 'Notification') => {
+    if (!emailService) {
+        throw new Error('Email service not available');
+    }
+    return emailService.sendMail({ to, subject, html: `<p>${message}</p>`, text: message });
+};
+
 module.exports = {
     metersToDegrees,
     generateGrid,
-    postTasks
+    postTasks,
+    sendMail
 };

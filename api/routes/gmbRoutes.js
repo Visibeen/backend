@@ -88,4 +88,20 @@ router.post('/upload-video', gmbController.uploadVideo);
  */
 router.delete('/delete-media', gmbController.deleteMedia);
 
+/**
+ * Update GMB Location (e.g., WhatsApp chat, website, phone)
+ * PATCH /api/v1/gmb/update-location
+ * 
+ * Body (JSON):
+ * - accountId: String (required) - GMB account ID
+ * - locationId: String (required) - GMB location ID
+ * - messagingUri: String (optional) - WhatsApp URI (e.g., https://wa.me/1234567890)
+ * - websiteUri: String (optional) - Website URL
+ * - phoneNumber: String (optional) - Primary phone number
+ * 
+ * Headers:
+ * - Authorization: Bearer {access_token}
+ */
+router.patch('/update-location', gmbController.updateLocation);
+
 module.exports = router;
