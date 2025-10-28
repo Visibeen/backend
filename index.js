@@ -92,6 +92,13 @@ app.group('/api', (router) => {
 
 var httpServer = http.createServer(app);
 initSocket(httpServer);
+
+// Initialize task scheduler for scheduled notifications
+const { initializeTaskScheduler } = require('./utils/taskScheduler');
+
 httpServer.listen(process.env.APP_PORT || 5000, function () {
-	console.log('Web app hosted at port: ' + httpServer.address().port)
+	console.log('Web app hosted at port: ' + httpServer.address().port);
+	
+	// Start the task scheduler after server is running
+	initializeTaskScheduler();
 });
