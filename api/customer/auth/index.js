@@ -15,6 +15,7 @@ const axios = require('axios');
 const nodemailer = require('nodemailer')
 const bcrypt = require('bcrypt');
 const { log } = require('console');
+const emailService = require('../../../services/emailService');
 
 
 async function checkGMBAccess(googleAccessToken) {
@@ -95,10 +96,23 @@ router.post('/signUp', async function (req, res) {
 			status: constants.USER.STATUSES.ACTIVE
 		};
 
-		const newUser = await models.sequelize.transaction(async (transaction) => {
-			return await models.User.create(userPayload, { transaction });
+	const newUser = await models.sequelize.transaction(async (transaction) => {
+		return await models.User.create(userPayload, { transaction });
+	});
+
+	// Send welcome email to new user
+	try {
+		await emailService.sendWelcomeEmail({
+			to: newUser.email,
+			userName: newUser.full_name
 		});
-		return REST.success(res, newUser, 'User created successfully.');
+		console.log(`✉️ Welcome email sent to ${newUser.email}`);
+	} catch (emailError) {
+		console.error('⚠️ Failed to send welcome email:', emailError.message);
+		// Don't fail registration if email fails
+	}
+
+	return REST.success(res, newUser, 'User created successfully.');
 	} catch (error) {
 		return REST.error(res, 'Something went wrong. Please try again.', 500);
 	}
@@ -107,27 +121,39 @@ router.post('/login', async function (req, res) {
 	try {
 		const data = req.body;
 		if (data.account_type == "google") {
-			const user = await models.User.findOne({ where: { email: data.email } });
-			if (!user) {
-				const user_uid = 'UID_' + support.generateRandomNumber();
-				const userPayload = {
-					full_name: data.full_name,
-					email: data.email,
-					phone_number: data.phone_number,
-					user_uid: user_uid,
-					account_type: data.account_type,
-					status: constants.USER.STATUSES.ACTIVE
-				};
-			const newUser = await models.sequelize.transaction(async (transaction) => {
-				return await models.User.create(userPayload, { transaction });
+		const user = await models.User.findOne({ where: { email: data.email } });
+		if (!user) {
+			const user_uid = 'UID_' + support.generateRandomNumber();
+			const userPayload = {
+				full_name: data.full_name,
+				email: data.email,
+				phone_number: data.phone_number,
+				user_uid: user_uid,
+				account_type: data.account_type,
+				status: constants.USER.STATUSES.ACTIVE
+			};
+		const newUser = await models.sequelize.transaction(async (transaction) => {
+			return await models.User.create(userPayload, { transaction });
+		});
+
+		// Send welcome email to new Google user
+		try {
+			await emailService.sendWelcomeEmail({
+				to: newUser.email,
+				userName: newUser.full_name
 			});
-			const token = auth.longTermToken({ userid: newUser.id }, config.USER_SECRET, 365);
-			await models.User.update({
-				token: token,
-				login_date: new Date()
-			}, { where: { id: newUser.id } });
-				const finalUser = await models.User.findOne({ where: { id: newUser.id } });
-				return REST.success(res, finalUser, 'Login successful.');
+			console.log(`✉️ Welcome email sent to ${newUser.email} (Google login)`);
+		} catch (emailError) {
+			console.error('⚠️ Failed to send welcome email:', emailError.message);
+		}
+
+		const token = auth.longTermToken({ userid: newUser.id }, config.USER_SECRET, 365);
+		await models.User.update({
+			token: token,
+			login_date: new Date()
+		}, { where: { id: newUser.id } });
+			const finalUser = await models.User.findOne({ where: { id: newUser.id } });
+			return REST.success(res, finalUser, 'Login successful.');
 		} else {
 			const token1 = auth.longTermToken({ userid: user.id }, config.USER_SECRET, 365);
 			await models.User.update({
@@ -211,23 +237,35 @@ router.post('/google-login', async function (req, res) {
 			return REST.error(res, 'Google access token is required.', 400);
 		}
 		const gmbCheck = await checkGMBAccess(accessToken);
-		let user = await models.User.findOne({ where: { email } });
-		if (!user) {
-			const user_uid = 'UID_' + support.generateRandomNumber();
-			const userPayload = {
-				full_name: full_name || email.split('@')[0],
-				email,
-				user_uid,
-				role_id: 3,
-				account_type: 'google',
-				status: constants.USER.STATUSES.ACTIVE,
-				google_access_token: accessToken,
-				has_gmb_access: gmbCheck.hasGMBAccess
-			};
-			user = await models.sequelize.transaction(async (transaction) => {
-				return await models.User.create(userPayload, { transaction });
+	let user = await models.User.findOne({ where: { email } });
+	const isNewUser = !user; // Track if this is a new user
+	if (!user) {
+		const user_uid = 'UID_' + support.generateRandomNumber();
+		const userPayload = {
+			full_name: full_name || email.split('@')[0],
+			email,
+			user_uid,
+			role_id: 3,
+			account_type: 'google',
+			status: constants.USER.STATUSES.ACTIVE,
+			google_access_token: accessToken,
+			has_gmb_access: gmbCheck.hasGMBAccess
+		};
+		user = await models.sequelize.transaction(async (transaction) => {
+			return await models.User.create(userPayload, { transaction });
+		});
+
+		// Send welcome email to new Google OAuth user
+		try {
+			await emailService.sendWelcomeEmail({
+				to: user.email,
+				userName: user.full_name
 			});
-		} else {
+			console.log(`✉️ Welcome email sent to ${user.email} (Google OAuth)`);
+		} catch (emailError) {
+			console.error('⚠️ Failed to send welcome email:', emailError.message);
+		}
+	} else {
 			await models.User.update({
 				login_date: new Date(),
 				role_id: 3,

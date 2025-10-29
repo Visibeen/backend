@@ -23,6 +23,40 @@ const normalizeTaskTitle = (title) => {
 };
 
 /**
+ * Helper function to check if a task is scheduled for now or in the past
+ * @param {string} assignDate - The date in YYYY-MM-DD format
+ * @param {string} assignTime - The time in HH:MM format (optional)
+ * @returns {boolean} - True if the task should be shown now
+ */
+const isTaskScheduledForNowOrPast = (assignDate, assignTime) => {
+  if (!assignDate) {
+    return true; // No date means show immediately
+  }
+
+  try {
+    const now = new Date();
+    
+    // Parse the assign date
+    const [year, month, day] = assignDate.split('-').map(Number);
+    
+    // If time is provided, use it; otherwise use start of day (00:00)
+    let scheduledDateTime;
+    if (assignTime) {
+      const [hours, minutes] = assignTime.split(':').map(Number);
+      scheduledDateTime = new Date(year, month - 1, day, hours, minutes, 0);
+    } else {
+      scheduledDateTime = new Date(year, month - 1, day, 0, 0, 0);
+    }
+    
+    // Return true if scheduled time has passed
+    return now >= scheduledDateTime;
+  } catch (error) {
+    console.error('Error parsing task schedule:', error);
+    return true; // Show task on error to be safe
+  }
+};
+
+/**
  * Check if a similar task already exists for this client/profile
  */
 const checkForDuplicateTask = async (title, clientId, profileId) => {
@@ -350,6 +384,7 @@ const createTask = async (req, res) => {
       assign_date: assignDate || null,
       assign_time: assignTime || null,
       created_by_type: 'admin', // Admin-created task
+      is_visible_to_client: true, // Make task visible to client
       category: category?.trim() || null,
       estimated_hours: estimatedHours || null,
       tags: tags?.trim() || null,
@@ -387,45 +422,66 @@ const createTask = async (req, res) => {
 
     console.log(`Task created successfully: ${task.id} by user ${createdBy}`);
 
-    // Send WhatsApp notification to assigned client
-    if (client.phone_number) {
-      const whatsappResult = await whatsappService.sendTaskAssignmentNotification({
-        phoneNumber: client.phone_number,
-        userName: client.full_name,
-        taskTitle: title,
-        taskDescription: description,
-        priority: priority || 'medium',
-        dueDate: assignDate,
-        businessName: profileName,
-        taskId: task.id.toString()
-      });
-      
-      if (whatsappResult.success) {
-        console.log(`📱 WhatsApp notification sent for task ${task.id}`);
-      }
-    } else {
-      console.log(`⚠️ No phone number for client ${clientId}, WhatsApp notification skipped`);
-    }
+    // ✅ Send notifications based on assigned date/time
+    // If no date OR date/time is now/past → send immediately
+    // If date/time is in future → cron job will send at scheduled time
+    const shouldSendImmediately = !assignDate || isTaskScheduledForNowOrPast(assignDate, assignTime);
 
-    // Send Email notification if client has email
-    if (client.email) {
-      try {
-        await emailService.sendTaskAssignmentEmail({
-          to: client.email,
-          userName: client.full_name || client.name,
-          taskTitle: title,
-          taskDescription: description,
-          priority: priority || 'medium',
-          dueDate: assignDate,
-          businessName: profileName,
-          taskId: task.id?.toString()
-        });
-        console.log(`✉️ Email assignment notification sent for task ${task.id}`);
-      } catch (e) {
-        console.warn('⚠️ Email assignment send failed:', e.message);
+    if (shouldSendImmediately) {
+      // Send WhatsApp notification to assigned client
+      if (client.phone_number) {
+        try {
+          const whatsappResult = await whatsappService.sendTaskAssignmentNotification({
+            phoneNumber: client.phone_number,
+            userName: client.full_name,
+            taskTitle: title,
+            taskDescription: description,
+            priority: priority || 'medium',
+            dueDate: assignDate,
+            businessName: profileName,
+            taskId: task.id.toString()
+          });
+          
+          if (whatsappResult.success) {
+            console.log(`📱 WhatsApp notification sent for task ${task.id}`);
+          }
+        } catch (e) {
+          console.error(`⚠️ WhatsApp send failed for task ${task.id}:`, e.message);
+        }
+      } else {
+        console.log(`⚠️ No phone number for client ${clientId}, WhatsApp notification skipped`);
       }
+
+      // Send Email notification if client has email
+      if (client.email) {
+        try {
+          await emailService.sendTaskAssignmentEmail({
+            to: client.email,
+            userName: client.full_name || client.name,
+            taskTitle: title,
+            taskDescription: description,
+            priority: priority || 'medium',
+            dueDate: assignDate,
+            businessName: profileName,
+            taskId: task.id?.toString()
+          });
+          console.log(`✉️ Email notification sent for task ${task.id} to ${client.email}`);
+        } catch (e) {
+          console.error(`❌ Email send failed for task ${task.id}:`, e.message);
+          console.error('Error details:', e);
+        }
+      } else {
+        console.log(`⚠️ No email for client ${clientId}, email notification skipped`);
+      }
+
+      // ✅ Mark notifications as sent with timestamp (prevents duplicate emails!)
+      await task.update({ 
+        notifications_sent: true,
+        notification_sent_at: new Date()
+      });
+      console.log(`✅ Marked task ${task.id} notifications as sent (immediate)`);
     } else {
-      console.log(`⚠️ No email for client ${clientId}, email notification skipped`);
+      console.log(`⏰ Task ${task.id} scheduled for ${assignDate} ${assignTime || ''} - notifications will be sent at scheduled time`);
     }
 
     return REST.success(res, { task: createdTask }, 'Task created successfully');
@@ -1001,12 +1057,19 @@ const getMyTasks = async (req, res) => {
       });
     }
 
-    const tasks = await Task.findAll({
+    const allTasks = await Task.findAll({
       where: {
         assigned_to_client_id: userId
       },
       order: [['created_at', 'DESC']]
     });
+
+    // Filter tasks to only show those that have reached their scheduled date/time
+    const tasks = allTasks.filter(task => {
+      return isTaskScheduledForNowOrPast(task.assign_date, task.assign_time);
+    });
+
+    console.log(`📋 Filtered ${tasks.length} tasks out of ${allTasks.length} for user ${userId} (hiding future scheduled tasks)`);
 
     return res.status(200).json({
       success: true,
@@ -1058,14 +1121,22 @@ const getProfileTasks = async (req, res) => {
       order: [['created_at', 'DESC']]
     });
 
-    // Filter by profile ID (flexible matching)
+    // Filter by profile ID (flexible matching) and scheduled date/time
     const filteredTasks = tasks.filter(task => {
       const taskProfileId = task.assigned_to_profile_id?.toString() || '';
       const taskNumericId = taskProfileId.replace('locations/', '');
       
-      return taskProfileId === profileId || 
-             taskProfileId === numericProfileId ||
-             taskNumericId === numericProfileId;
+      // Check if task belongs to this profile
+      const belongsToProfile = taskProfileId === profileId || 
+                               taskProfileId === numericProfileId ||
+                               taskNumericId === numericProfileId;
+      
+      if (!belongsToProfile) {
+        return false;
+      }
+      
+      // Check if task is scheduled for now or past
+      return isTaskScheduledForNowOrPast(task.assign_date, task.assign_time);
     });
 
     // Deduplicate tasks by title + description to prevent showing duplicate tasks
@@ -1254,6 +1325,67 @@ const bulkAssignTask = async (req, res) => {
         });
 
         createdTasks.push(task);
+
+        // ✅ NEW: Send immediate notifications if task is scheduled for now/past
+        const shouldSendImmediately = !assignDate || isTaskScheduledForNowOrPast(assignDate, assignTime);
+        
+        if (shouldSendImmediately) {
+          // Get client details for notifications
+          const client = await User.findByPk(profile.clientId);
+          
+          if (client) {
+            // Send WhatsApp notification
+            if (client.phone_number) {
+              try {
+                const whatsappResult = await whatsappService.sendTaskAssignmentNotification({
+                  phoneNumber: client.phone_number,
+                  userName: client.full_name,
+                  taskTitle: title,
+                  taskDescription: description,
+                  priority: priority || 'medium',
+                  dueDate: assignDate,
+                  businessName: profile.profileName,
+                  taskId: task.id.toString()
+                });
+                
+                if (whatsappResult.success) {
+                  console.log(`📱 WhatsApp notification sent for bulk task ${task.id}`);
+                }
+              } catch (e) {
+                console.error(`WhatsApp send failed for task ${task.id}:`, e.message);
+              }
+            }
+
+            // Send Email notification
+            if (client.email) {
+              try {
+                await emailService.sendTaskAssignmentEmail({
+                  to: client.email,
+                  userName: client.full_name || client.name,
+                  taskTitle: title,
+                  taskDescription: description,
+                  priority: priority || 'medium',
+                  dueDate: assignDate,
+                  businessName: profile.profileName,
+                  taskId: task.id.toString()
+                });
+                console.log(`✉️ Email notification sent for bulk task ${task.id} to ${client.email}`);
+              } catch (e) {
+                console.error(`❌ Email send failed for bulk task ${task.id}:`, e.message);
+                console.error('Error details:', e);
+              }
+            }
+
+            // ✅ Mark notifications as sent
+            await task.update({ 
+              notifications_sent: true,
+              notification_sent_at: new Date()
+            });
+            console.log(`✅ Marked bulk task ${task.id} notifications as sent (immediate)`);
+          }
+        } else {
+          console.log(`⏰ Bulk task ${task.id} scheduled for ${assignDate} ${assignTime || ''} - notifications will be sent at scheduled time`);
+        }
       } catch (error) {
         console.error(`❌ Error creating task for profile ${profile.profileId}:`, error.message);
         errors.push({
@@ -1526,6 +1658,117 @@ const completeTask = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Send notifications for scheduled tasks that have reached their scheduled time
+ * @route   POST /api/admin/tasks/process-scheduled-notifications
+ * @access  Internal/Cron
+ * @info    This should be called periodically (e.g., every 5-15 minutes) by a cron job
+ */
+const processScheduledNotifications = async (req, res) => {
+  try {
+    console.log('⏰ [SCHEDULED NOTIFICATIONS] Processing scheduled task notifications...');
+    
+    // Find all pending tasks that:
+    // 1. Have a scheduled date/time
+    // 2. The scheduled time has arrived
+    // 3. Notifications have NOT been sent yet (NEW CHECK - prevents duplicates!)
+    const allTasks = await Task.findAll({
+      where: {
+        status: 'pending',
+        assign_date: { [Op.ne]: null }, // Has a scheduled date
+        notifications_sent: false // ✅ NEW: Only get tasks where notifications NOT sent
+      },
+      include: [
+        {
+          model: User,
+          as: 'assignedClient',
+          attributes: ['id', 'email', 'full_name', 'phone_number'],
+          required: true
+        }
+      ]
+    });
+
+    let processedCount = 0;
+    let notificationsSent = 0;
+
+    for (const task of allTasks) {
+      // Check if this task's scheduled time has arrived
+      if (isTaskScheduledForNowOrPast(task.assign_date, task.assign_time)) {
+        processedCount++;
+
+        // Send WhatsApp notification
+        if (task.assignedClient.phone_number) {
+          try {
+            const whatsappResult = await whatsappService.sendTaskAssignmentNotification({
+              phoneNumber: task.assignedClient.phone_number,
+              userName: task.assignedClient.full_name,
+              taskTitle: task.title,
+              taskDescription: task.description,
+              priority: task.priority,
+              dueDate: task.assign_date,
+              businessName: task.assigned_to_profile_name,
+              taskId: task.id.toString()
+            });
+            
+            if (whatsappResult.success) {
+              console.log(`📱 Scheduled WhatsApp notification sent for task ${task.id}`);
+              notificationsSent++;
+            }
+          } catch (e) {
+            console.error(`Failed to send WhatsApp for task ${task.id}:`, e.message);
+          }
+        }
+
+        // Send Email notification
+        if (task.assignedClient.email) {
+          try {
+            await emailService.sendTaskAssignmentEmail({
+              to: task.assignedClient.email,
+              userName: task.assignedClient.full_name,
+              taskTitle: task.title,
+              taskDescription: task.description,
+              priority: task.priority,
+              dueDate: task.assign_date,
+              businessName: task.assigned_to_profile_name,
+              taskId: task.id.toString()
+            });
+            console.log(`✉️ Scheduled email notification sent for task ${task.id}`);
+            notificationsSent++;
+          } catch (e) {
+            console.error(`Failed to send email for task ${task.id}:`, e.message);
+          }
+        }
+
+        // ✅ NEW: Mark notifications as sent with timestamp (prevents duplicate emails!)
+        await task.update({ 
+          notifications_sent: true,
+          notification_sent_at: new Date()
+        }, { silent: false });
+        
+        console.log(`✅ Marked task ${task.id} notifications as sent`);
+      }
+    }
+
+    console.log(`✅ [SCHEDULED NOTIFICATIONS] Processed ${processedCount} tasks, sent ${notificationsSent} notifications`);
+
+    return res ? res.status(200).json({
+      success: true,
+      message: `Processed ${processedCount} scheduled tasks`,
+      data: { 
+        processedCount, 
+        notificationsSent 
+      }
+    }) : { processedCount, notificationsSent };
+
+  } catch (error) {
+    console.error('Error in processScheduledNotifications:', error);
+    if (res) {
+      return REST.error(res, error.message, 500);
+    }
+    throw error;
+  }
+};
+
 module.exports = {
   getTasks,
   getTaskById,
@@ -1541,5 +1784,6 @@ module.exports = {
   getTasksByClient,
   getTaskStatistics,
   bulkUpdateStatus,
-  uploadTaskPhotoToGMB
+  uploadTaskPhotoToGMB,
+  processScheduledNotifications
 };

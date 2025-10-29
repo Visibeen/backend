@@ -87,4 +87,12 @@ router.put('/bulk-update-status', isAdmin, taskController.bulkUpdateStatus);
  */
 router.post('/upload-photo-to-gmb', isAdmin, taskController.uploadTaskPhotoToGMB);
 
+/**
+ * @route   POST /api/admin/tasks/process-scheduled-notifications
+ * @desc    Process and send notifications for scheduled tasks that have reached their time
+ * @access  Admin/Internal (Should be called by cron job)
+ * @info    Call this endpoint every 5-15 minutes via cron job to send notifications for scheduled tasks
+ */
+router.post('/process-scheduled-notifications', isAdmin, taskController.processScheduledNotifications);
+
 module.exports = router;

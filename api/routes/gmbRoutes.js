@@ -8,6 +8,12 @@ const express = require('express');
 const router = express.Router();
 const gmbController = require('../controllers/gmbController');
 
+// Test route to verify GMB routes are working
+router.get('/test', (req, res) => {
+  console.log('✅ GMB test route hit');
+  res.json({ success: true, message: 'GMB routes are working' });
+});
+
 /**
  * Upload single photo to GMB
  * POST /api/v1/gmb/upload-photo

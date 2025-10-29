@@ -306,6 +306,30 @@ const uploadSinglePhoto = async (photoFile, accountId, locationId, category, acc
 };
 
 /**
+ * Helper function to verify if account and location exist
+ */
+const verifyGMBAccess = async (accountId, locationId, accessToken) => {
+  try {
+    const verifyUrl = `https://mybusinessbusinessinformation.googleapis.com/v1/accounts/${accountId}/locations/${locationId}`;
+    const response = await axios.get(verifyUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+    return { valid: true, location: response.data };
+  } catch (error) {
+    if (error.response?.status === 404) {
+      return { valid: false, error: 'Location not found' };
+    } else if (error.response?.status === 403) {
+      return { valid: false, error: 'Access denied to this location' };
+    } else if (error.response?.status === 401) {
+      return { valid: false, error: 'Invalid or expired access token' };
+    }
+    return { valid: false, error: error.response?.data?.error?.message || 'Unknown error' };
+  }
+};
+
+/**
  * Create GMB Local Post (appears in feed)
  * POST /api/v1/gmb/create-local-post
  * 
@@ -315,8 +339,31 @@ const createLocalPost = async (req, res) => {
   try {
     console.log('📝 [GMB Local Post] Creating local post...');
     
+    // Log all incoming data for debugging
+    console.log('🔍 [GMB Local Post] Incoming request data:', {
+      body: req.body,
+      hasFiles: !!req.files,
+      filesKeys: req.files ? Object.keys(req.files) : [],
+      hasPhoto: !!(req.files && req.files.photo),
+      headers: {
+        authorization: req.headers.authorization ? 'Present' : 'Missing'
+      }
+    });
+    
     const { accountId, locationId, summary, topicType = 'STANDARD', actionType, actionUrl } = req.body;
     const accessToken = req.headers.authorization?.replace('Bearer ', '');
+    
+    console.log('🔍 [GMB Local Post] Parsed values:', {
+      accountId,
+      locationId,
+      accountIdLength: accountId?.length,
+      locationIdLength: locationId?.length,
+      summary: summary?.substring(0, 50) + '...',
+      topicType,
+      actionType,
+      actionUrl,
+      hasAccessToken: !!accessToken
+    });
 
     // Validation
     if (!accessToken) {
@@ -330,6 +377,11 @@ const createLocalPost = async (req, res) => {
     if (!summary || summary.trim().length === 0) {
       return REST.error(res, 'Post summary is required', 400);
     }
+
+    // Skip pre-verification - let Google's API handle validation during post creation
+    // The verification was using Business Information API v1 which returned false negatives
+    // If the location doesn't exist, the actual post creation API (GMB v4) will return proper error
+    console.log('🔍 [GMB Local Post] Proceeding with post creation (validation will happen at Google\'s API)...');
 
     // Build post data
     const postData = {
@@ -413,10 +465,23 @@ const createLocalPost = async (req, res) => {
     console.error('❌ [GMB Local Post] Error:', error.message);
     
     if (error.response) {
-      console.error('❌ [GMB Local Post] API Error:', {
+      console.error('❌ [GMB Local Post] API Error Details:', {
         status: error.response.status,
-        data: error.response.data
+        statusText: error.response.statusText,
+        data: error.response.data,
+        requestUrl: error.config?.url,
+        accountId: req.body.accountId,
+        locationId: req.body.locationId
       });
+      
+      // Handle specific Google API errors
+      if (error.response.status === 404 && error.response.data?.error?.message?.includes('Requested entity was not found')) {
+        return REST.error(
+          res, 
+          `GMB location not found. Please verify that the account ID (${req.body.accountId}) and location ID (${req.body.locationId}) are correct and that you have access to this location.`, 
+          404
+        );
+      }
       
       return REST.error(
         res, 
