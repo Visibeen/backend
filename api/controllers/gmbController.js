@@ -378,34 +378,10 @@ const createLocalPost = async (req, res) => {
       return REST.error(res, 'Post summary is required', 400);
     }
 
-    // Verify GMB access before proceeding
-    console.log('🔍 [GMB Local Post] Verifying GMB access...');
-    const verification = await verifyGMBAccess(accountId, locationId, accessToken);
-    
-    if (!verification.valid) {
-      console.error('❌ [GMB Local Post] Access verification failed:', verification.error);
-      
-      if (verification.error === 'Location not found') {
-        return REST.error(res, 
-          `GMB location not found. The location ID "${locationId}" for account "${accountId}" doesn't exist or has been deleted. Please reconnect your Google My Business account.`, 
-          404
-        );
-      } else if (verification.error === 'Access denied to this location') {
-        return REST.error(res, 
-          `Access denied. You don't have permission to post to this GMB location. Please ensure you have admin access to this business profile.`, 
-          403
-        );
-      } else if (verification.error === 'Invalid or expired access token') {
-        return REST.error(res, 
-          `Authentication failed. Your Google session has expired. Please sign in again with Google.`, 
-          401
-        );
-      }
-      
-      return REST.error(res, `GMB verification failed: ${verification.error}`, 400);
-    }
-    
-    console.log('✅ [GMB Local Post] Access verified. Location found:', verification.location?.name);
+    // Skip pre-verification - let Google's API handle validation during post creation
+    // The verification was using Business Information API v1 which returned false negatives
+    // If the location doesn't exist, the actual post creation API (GMB v4) will return proper error
+    console.log('🔍 [GMB Local Post] Proceeding with post creation (validation will happen at Google\'s API)...');
 
     // Build post data
     const postData = {

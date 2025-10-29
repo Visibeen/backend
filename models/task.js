@@ -236,6 +236,17 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.JSON,
       allowNull: true,
       comment: 'Array of file paths/URLs for task attachments (photos, documents, etc.)'
+    },
+    notification_sent_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'Timestamp when notification was sent to user'
+    },
+    notifications_sent: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      allowNull: false,
+      comment: 'Flag indicating if notifications have been sent'
     }
   }, {
     sequelize,
