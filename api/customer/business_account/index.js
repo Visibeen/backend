@@ -10,6 +10,7 @@ const support = require('../../../utils/support');
 var REST = require("../../../utils/REST");
 
 const router = express.Router();
+const directory = require('../../../utils/directory');
 
 
 
@@ -55,6 +56,12 @@ router.post('/create-business', async function (req, res) {
             )
             return data
         })
+        // Attempt to upsert into directory listings (non-blocking)
+        try {
+            await directory.upsertListingForBusinessAccount(business);
+        } catch (e) {
+            // ignore ingestion errors to not block user flow
+        }
         return REST.success(res, business, 'Business account created successfully');
     } catch (error) {
         return REST.error(res, error.message, 500);
