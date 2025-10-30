@@ -1121,6 +1121,39 @@ const getProfileTasks = async (req, res) => {
       order: [['created_at', 'DESC']]
     });
 
+    // Live diagnostics
+    try {
+      const byType = tasks.reduce((acc, t) => {
+        const key = (t.created_by_type || 'unknown').toString();
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+      const byProfileMatch = tasks.reduce((acc, t) => {
+        const pid = (t.assigned_to_profile_id || '').toString();
+        const numPid = pid.replace('locations/', '');
+        const matches = pid === profileId || pid === numericProfileId || numPid === numericProfileId;
+        if (matches) acc.matches = (acc.matches || 0) + 1; else acc.misses = (acc.misses || 0) + 1;
+        return acc;
+      }, { matches: 0, misses: 0 });
+      console.log('🧪 getProfileTasks diagnostics:', {
+        total: tasks.length,
+        created_by_type_counts: byType,
+        profile_match: byProfileMatch,
+        sample: tasks.slice(0, 3).map(t => ({
+          id: t.id,
+          title: t.title,
+          created_by_type: t.created_by_type,
+          is_visible_to_client: t.is_visible_to_client,
+          assigned_to_profile_id: t.assigned_to_profile_id,
+          assign_date: t.assign_date,
+          assign_time: t.assign_time,
+          created_at: t.created_at
+        }))
+      });
+    } catch (e) {
+      console.log('⚠️ getProfileTasks diagnostics logging failed:', e?.message || e);
+    }
+
     // Filter by profile ID (flexible matching) and scheduled date/time
     const filteredTasks = tasks.filter(task => {
       const taskProfileId = task.assigned_to_profile_id?.toString() || '';
@@ -1135,24 +1168,59 @@ const getProfileTasks = async (req, res) => {
         return false;
       }
       
-      // Check if task is scheduled for now or past
+      // Always show ADMIN-created tasks regardless of schedule time
+      const createdByType = (task.created_by_type || '').toString().toLowerCase();
+      if (createdByType === 'admin') {
+        return true;
+      }
+
+      // Check if task is scheduled for now or past (applies to AI/default tasks)
       return isTaskScheduledForNowOrPast(task.assign_date, task.assign_time);
     });
 
-    // Deduplicate tasks by title + description to prevent showing duplicate tasks
-    const uniqueTasks = [];
-    const seenTasks = new Set();
-    
+    // Deduplicate tasks by display-intent while PREFERRING ADMIN tasks over AI
+    // Preference rules within same title+description bucket:
+    // 1) admin over ai
+    // 2) incomplete over completed
+    // 3) newest by created_at
+    const normalize = (s) => (s || '')
+      .toString()
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const bestByKey = new Map();
+
+    const prefer = (existing, candidate) => {
+      const existingType = (existing.created_by_type || '').toString().toLowerCase();
+      const candidateType = (candidate.created_by_type || '').toString().toLowerCase();
+      const existingIsAdmin = existingType === 'admin';
+      const candidateIsAdmin = candidateType === 'admin';
+      if (candidateIsAdmin && !existingIsAdmin) return true;
+      if (existingIsAdmin && !candidateIsAdmin) return false;
+
+      const existingIncomplete = !(existing.completed || existing.status === 'completed');
+      const candidateIncomplete = !(candidate.completed || candidate.status === 'completed');
+      if (candidateIncomplete && !existingIncomplete) return true;
+      if (existingIncomplete && !candidateIncomplete) return false;
+
+      const existingCreated = new Date(existing.created_at || 0).getTime();
+      const candidateCreated = new Date(candidate.created_at || 0).getTime();
+      if (candidateCreated > existingCreated) return true;
+      return false;
+    };
+
     for (const task of filteredTasks) {
-      const taskKey = `${task.title}|${task.description}`.toLowerCase().trim();
-      
-      if (!seenTasks.has(taskKey)) {
-        seenTasks.add(taskKey);
-        uniqueTasks.push(task);
+      const key = normalize(`${task.title}|${task.description}`);
+      const current = bestByKey.get(key);
+      if (!current || prefer(current, task)) {
+        bestByKey.set(key, task);
       } else {
-        console.log(`⚠️ Skipping duplicate task: ${task.title} (ID: ${task.id})`);
+        console.log(`⚠️ Skipping duplicate task (kept preferred): ${task.title} (ID: ${task.id})`);
       }
     }
+
+    const uniqueTasks = Array.from(bestByKey.values());
 
     console.log(`✅ Found ${filteredTasks.length} tasks, returning ${uniqueTasks.length} unique tasks for profile ${profileId}`);
 

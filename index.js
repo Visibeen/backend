@@ -19,7 +19,7 @@ global.constants = require("./constants/index");
 const { initSocket } = require('./socket');
 const app = express();
 
-const allowedOrigins = ['https://visibeen.com', 'https://www.visibeen.com','https://api.visibeen.com','http://localhost:8089', 'http://localhost:3000','http://localhost:3001'];
+const allowedOrigins = ['https://visibeen.com', 'https://www.visibeen.com','https://api.visibeen.com','https://directory.visibeen.com','http://localhost:8089', 'http://localhost:3000','http://localhost:3001'];
 app.use(
     cors({
         origin: allowedOrigins,
@@ -52,6 +52,7 @@ app.group('/api', (router) => {
 		groupV1.use('/errors', require("./api/errors"));
 		groupV1.use('/gmb', require("./api/routes/gmbRoutes"));
 		groupV1.use('/post-scheduler', require("./api/routes/postSchedulerRoutes"));
+		groupV1.use('/directory', require('./api/routes/directoryRoutes'));
 		groupV1.group('/customer', (groupRouter) => {
 			groupRouter.use('/auth', require('./api/customer/auth/index'));
 			groupRouter.use([middleware.verifyAuthenticate, middleware.routeAuthentication([3])]);

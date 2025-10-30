@@ -29,6 +29,10 @@ const allowed_email = require('./allowed_email.js')(sequelize, Sequelize.DataTyp
 const Task = require('./task.js')(sequelize, Sequelize.DataTypes);
 const GmbAccount = require('./gmb_account.js')(sequelize, Sequelize.DataTypes);
 const profile_permission = require('./profile_permission.js')(sequelize, Sequelize.DataTypes);
+const state = require('./state.js')(sequelize, Sequelize.DataTypes);
+const city = require('./city.js')(sequelize, Sequelize.DataTypes);
+const category = require('./category.js')(sequelize, Sequelize.DataTypes);
+const directory_listing = require('./directory_listing.js')(sequelize, Sequelize.DataTypes);
 
 // user and bussiness account relationship
 business_account.belongsTo(User, { foreignKey: 'user_id', as: 'userdetails', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
@@ -155,6 +159,10 @@ db.allowed_email = allowed_email;
 db.Task = Task;
 db.GmbAccount = GmbAccount;
 db.profile_permission = profile_permission;
+db.state = state;
+db.city = city;
+db.category = category;
+db.directory_listing = directory_listing;
 
 
 Object.keys(db).forEach(modelName => {
