@@ -1,23 +1,28 @@
 /**
- * WhatsApp Service using Meta WhatsApp Business API
+ * WhatsApp Service with pluggable providers (Meta / AiSensy)
  * @description Sends WhatsApp notifications for task assignments
  * @author Senior Backend Developer
  */
 
 const axios = require('axios');
+const AiSensyProvider = require('./whatsappProviders/aisensyProvider');
 
 class WhatsAppService {
   constructor() {
+    this.provider = (process.env.WHATSAPP_PROVIDER || 'aisensy').toLowerCase();
+
+    // Meta config
     this.apiUrl = process.env.META_WHATSAPP_API_URL || 'https://graph.facebook.com/v18.0';
     this.phoneNumberId = process.env.META_WHATSAPP_PHONE_NUMBER_ID;
     this.accessToken = process.env.META_WHATSAPP_ACCESS_TOKEN;
     this.businessAccountId = process.env.META_WHATSAPP_BUSINESS_ACCOUNT_ID;
-    // Use template messages for production (recommended)
     this.useTemplates = process.env.META_WHATSAPP_USE_TEMPLATES === 'true';
     this.taskNotificationTemplate = process.env.META_WHATSAPP_TASK_TEMPLATE || 'task_notification';
     this.statusUpdateTemplate = process.env.META_WHATSAPP_STATUS_TEMPLATE || 'task_status_update';
-    // Manual language code override (if auto-detection fails)
     this.templateLanguage = process.env.META_WHATSAPP_TEMPLATE_LANGUAGE || null;
+
+    // AiSensy provider instance (lazy)
+    this._aisensy = null;
   }
 
   /**
@@ -131,11 +136,6 @@ class WhatsAppService {
         return { success: false, error: 'No phone number' };
       }
 
-      if (!this.phoneNumberId || !this.accessToken) {
-        console.log('❌ WhatsApp notification skipped: Missing API credentials');
-        return { success: false, error: 'Missing API credentials' };
-      }
-
       const formattedPhone = this.formatPhoneNumber(phoneNumber);
       if (!formattedPhone) {
         console.log('❌ WhatsApp notification skipped: Invalid phone number format');
@@ -171,103 +171,78 @@ ${taskDescription ? `📝 *Description:*\n${taskDescription}\n` : ''}
 
 _This is an automated message from Visibeen Task Management System._`;
 
-      // Send message via Meta WhatsApp API
+      // Branch by provider
       console.log(`\n${'='.repeat(60)}`);
       console.log(`📤 SENDING WHATSAPP MESSAGE`);
       console.log(`${'='.repeat(60)}`);
       console.log(`📱 To: ${formattedPhone}`);
       console.log(`👤 User: ${userName}`);
       console.log(`📋 Task: ${taskTitle}`);
-      console.log(`🔗 API URL: ${this.apiUrl}/${this.phoneNumberId}/messages`);
-      console.log(`🔑 Token: ${this.accessToken ? this.accessToken.substring(0, 20) + '...' : 'MISSING'}`);
-      console.log(`📞 Phone ID: ${this.phoneNumberId || 'MISSING'}`);
-      console.log(`📝 Mode: ${this.useTemplates ? 'TEMPLATE' : 'FREE-FORM'}`);
+      console.log(`🔌 Provider: ${this.provider}`);
       console.log(`${'='.repeat(60)}\n`);
-      
-      let requestBody;
-      
-      if (this.useTemplates) {
-        // Use manual override if set, otherwise auto-detect from Meta API
-        let languageCode;
-        if (this.templateLanguage) {
-          console.log(`🔧 Using manual language override: ${this.templateLanguage}`);
-          languageCode = this.templateLanguage;
-        } else {
-          languageCode = await this.getTemplateLanguage(this.taskNotificationTemplate);
+      if (this.provider === 'aisensy') {
+        if (!this._aisensy) this._aisensy = new AiSensyProvider();
+        const templateId = process.env.AISENSY_TEMPLATE_ID_TASK;
+        if (templateId) {
+          const params = [userName || 'there', priorityEmoji, taskTitle, (dueDateText.replace('\n📅 *Due Date:* ', '') || 'Not set'), (businessName || 'N/A'), (taskDescription || 'No description')];
+          const res = await this._aisensy.sendTemplate({ to: formattedPhone, templateId, parameters: params });
+          return res;
         }
-        
-        // Use approved template message (production mode)
-        requestBody = {
-          messaging_product: 'whatsapp',
-          to: formattedPhone,
-          type: 'template',
-          template: {
-            name: this.taskNotificationTemplate,
-            language: {
-              code: languageCode
-            },
-            components: [
-              {
-                type: 'body',
-                parameters: [
+        // Fallback to text message
+        const res = await this._aisensy.sendText({ to: formattedPhone, text: messageText });
+        return res;
+      } else {
+        // Meta provider (existing logic)
+        if (!this.phoneNumberId || !this.accessToken) {
+          console.log('❌ WhatsApp notification skipped: Missing API credentials');
+          return { success: false, error: 'Missing API credentials' };
+        }
+
+        let requestBody;
+        if (this.useTemplates) {
+          let languageCode;
+          if (this.templateLanguage) {
+            console.log(`🔧 Using manual language override: ${this.templateLanguage}`);
+            languageCode = this.templateLanguage;
+          } else {
+            languageCode = await this.getTemplateLanguage(this.taskNotificationTemplate);
+          }
+          requestBody = {
+            messaging_product: 'whatsapp',
+            to: formattedPhone,
+            type: 'template',
+            template: {
+              name: this.taskNotificationTemplate,
+              language: { code: languageCode },
+              components: [
+                { type: 'body', parameters: [
                   { type: 'text', text: userName || 'there' },
                   { type: 'text', text: priorityEmoji },
                   { type: 'text', text: taskTitle },
                   { type: 'text', text: dueDateText.replace('\n📅 *Due Date:* ', '') || 'Not set' },
                   { type: 'text', text: businessName || 'N/A' },
                   { type: 'text', text: taskDescription || 'No description' }
-                ]
-              },
-              {
-                type: 'button',
-                sub_type: 'url',
-                index: '0',
-                parameters: [
-                  { type: 'text', text: taskId || '0' }
-                ]
-              }
-            ]
-          }
-        };
-        console.log(`📋 Using template: ${this.taskNotificationTemplate}`);
-        console.log(`🌐 Language code: ${languageCode}`);
-      } else {
-        // Use free-form text message (test mode - only works within 24h window)
-        requestBody = {
-          messaging_product: 'whatsapp',
-          recipient_type: 'individual',
-          to: formattedPhone,
-          type: 'text',
-          text: {
-            preview_url: false,
-            body: messageText
-          }
-        };
-        console.log(`⚠️  Using free-form message (only works within 24h window)`);
-      }
-      
-      console.log(`📦 Request Body:`, JSON.stringify(requestBody, null, 2));
-      
-      const response = await axios.post(
-        `${this.apiUrl}/${this.phoneNumberId}/messages`,
-        requestBody,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
-          }
+                ]},
+                { type: 'button', sub_type: 'url', index: '0', parameters: [ { type: 'text', text: taskId || '0' } ] }
+              ]
+            }
+          };
+        } else {
+          requestBody = {
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: formattedPhone,
+            type: 'text',
+            text: { preview_url: false, body: messageText }
+          };
         }
-      );
-
-      console.log(`\n✅ WhatsApp API Response:`, JSON.stringify(response.data, null, 2));
-      console.log(`✅ Message ID: ${response.data.messages?.[0]?.id}`);
-      console.log(`✅ WhatsApp notification sent to ${formattedPhone} for task: ${taskTitle}\n`);
-      
-      return { 
-        success: true, 
-        messageId: response.data.messages?.[0]?.id,
-        data: response.data 
-      };
+        const response = await axios.post(
+          `${this.apiUrl}/${this.phoneNumberId}/messages`,
+          requestBody,
+          { headers: { 'Authorization': `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' } }
+        );
+        return { success: true, messageId: response.data.messages?.[0]?.id, data: response.data };
+      }
 
     } catch (error) {
       console.error('❌ Error sending WhatsApp notification:', error.response?.data || error.message);
@@ -298,14 +273,8 @@ _This is an automated message from Visibeen Task Management System._`;
     businessName
   }) {
     try {
-      if (!phoneNumber || !this.phoneNumberId || !this.accessToken) {
-        return { success: false, error: 'Missing required fields or credentials' };
-      }
-
       const formattedPhone = this.formatPhoneNumber(phoneNumber);
-      if (!formattedPhone) {
-        return { success: false, error: 'Invalid phone number' };
-      }
+      if (!formattedPhone) return { success: false, error: 'Invalid phone number' };
 
       // Status emojis
       const statusEmoji = {
@@ -328,32 +297,22 @@ ${statusEmoji[newStatus] || '⚪'} Current: ${newStatus?.toUpperCase() || 'N/A'}
 
 _This is an automated message from Visibeen Task Management System._`;
 
-      const response = await axios.post(
-        `${this.apiUrl}/${this.phoneNumberId}/messages`,
-        {
-          messaging_product: 'whatsapp',
-          recipient_type: 'individual',
-          to: formattedPhone,
-          type: 'text',
-          text: {
-            preview_url: false,
-            body: messageText
-          }
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
-          }
+      if (this.provider === 'aisensy') {
+        if (!this._aisensy) this._aisensy = new AiSensyProvider();
+        const templateId = process.env.AISENSY_TEMPLATE_ID_STATUS;
+        if (templateId) {
+          const params = [userName || 'there', taskTitle, (oldStatus || 'N/A'), (newStatus || 'N/A'), (businessName || 'N/A')];
+          return await this._aisensy.sendTemplate({ to: formattedPhone, templateId, parameters: params });
         }
-      );
-
-      console.log(`✅ WhatsApp update notification sent to ${formattedPhone} for task: ${taskTitle}`);
-      return { 
-        success: true, 
-        messageId: response.data.messages?.[0]?.id,
-        data: response.data 
-      };
+        return await this._aisensy.sendText({ to: formattedPhone, text: messageText });
+      } else {
+        const response = await axios.post(
+          `${this.apiUrl}/${this.phoneNumberId}/messages`,
+          { messaging_product: 'whatsapp', recipient_type: 'individual', to: formattedPhone, type: 'text', text: { preview_url: false, body: messageText } },
+          { headers: { 'Authorization': `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' } }
+        );
+        return { success: true, messageId: response.data.messages?.[0]?.id, data: response.data };
+      }
 
     } catch (error) {
       console.error('❌ Error sending WhatsApp update notification:', error.response?.data || error.message);
@@ -374,14 +333,8 @@ _This is an automated message from Visibeen Task Management System._`;
    */
   async sendDailyTaskReminder({ phoneNumber, userName, tasks }) {
     try {
-      if (!phoneNumber || !this.phoneNumberId || !this.accessToken) {
-        return { success: false, error: 'Missing required fields or credentials' };
-      }
-
       const formattedPhone = this.formatPhoneNumber(phoneNumber);
-      if (!formattedPhone || !tasks || tasks.length === 0) {
-        return { success: false, error: 'Invalid phone number or no tasks' };
-      }
+      if (!formattedPhone || !tasks || tasks.length === 0) return { success: false, error: 'Invalid phone number or no tasks' };
 
       // Format tasks list
       const tasksList = tasks.map((task, index) => {
@@ -404,32 +357,17 @@ ${tasksList}
 
 _This is an automated message from Visibeen Task Management System._`;
 
-      const response = await axios.post(
-        `${this.apiUrl}/${this.phoneNumberId}/messages`,
-        {
-          messaging_product: 'whatsapp',
-          recipient_type: 'individual',
-          to: formattedPhone,
-          type: 'text',
-          text: {
-            preview_url: false,
-            body: messageText
-          }
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      console.log(`✅ WhatsApp daily reminder sent to ${formattedPhone} with ${tasks.length} tasks`);
-      return { 
-        success: true, 
-        messageId: response.data.messages?.[0]?.id,
-        data: response.data 
-      };
+      if (this.provider === 'aisensy') {
+        if (!this._aisensy) this._aisensy = new AiSensyProvider();
+        return await this._aisensy.sendText({ to: formattedPhone, text: messageText });
+      } else {
+        const response = await axios.post(
+          `${this.apiUrl}/${this.phoneNumberId}/messages`,
+          { messaging_product: 'whatsapp', recipient_type: 'individual', to: formattedPhone, type: 'text', text: { preview_url: false, body: messageText } },
+          { headers: { 'Authorization': `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' } }
+        );
+        return { success: true, messageId: response.data.messages?.[0]?.id, data: response.data };
+      }
 
     } catch (error) {
       console.error('❌ Error sending WhatsApp daily reminder:', error.response?.data || error.message);

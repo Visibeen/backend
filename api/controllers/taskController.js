@@ -24,32 +24,47 @@ const normalizeTaskTitle = (title) => {
 
 /**
  * Helper function to check if a task is scheduled for now or in the past
- * @param {string} assignDate - The date in YYYY-MM-DD format
- * @param {string} assignTime - The time in HH:MM format (optional)
+ * Uses timezone offset to correctly compare scheduled time with server time
+ * @param {string} assignDate - The date in YYYY-MM-DD format (in local client timezone)
+ * @param {string} assignTime - The time in HH:MM format (in local client timezone, optional)
+ * @param {number} timezoneOffset - Timezone offset in minutes from UTC (e.g., IST = +330, EST = -300)
  * @returns {boolean} - True if the task should be shown now
  */
-const isTaskScheduledForNowOrPast = (assignDate, assignTime) => {
+const isTaskScheduledForNowOrPast = (assignDate, assignTime, timezoneOffset = 0) => {
   if (!assignDate) {
     return true; // No date means show immediately
   }
 
   try {
-    const now = new Date();
+    // Get current time in UTC milliseconds
+    const nowUTC = Date.now();
     
-    // Parse the assign date
+    // Parse the assign date and time (this is in CLIENT'S local timezone)
     const [year, month, day] = assignDate.split('-').map(Number);
     
     // If time is provided, use it; otherwise use start of day (00:00)
-    let scheduledDateTime;
+    let hours = 0, minutes = 0;
     if (assignTime) {
-      const [hours, minutes] = assignTime.split(':').map(Number);
-      scheduledDateTime = new Date(year, month - 1, day, hours, minutes, 0);
-    } else {
-      scheduledDateTime = new Date(year, month - 1, day, 0, 0, 0);
+      [hours, minutes] = assignTime.split(':').map(Number);
     }
     
+    // Create date in UTC by treating the date/time as if it were UTC
+    // Then subtract the timezone offset to get the actual UTC time
+    const scheduledUTC = Date.UTC(year, month - 1, day, hours, minutes, 0);
+    
+    // Convert timezone offset from minutes to milliseconds
+    // timezoneOffset is in minutes: IST = +330 (UTC+5:30), EST = -300 (UTC-5:00)
+    const offsetMs = timezoneOffset * 60 * 1000;
+    
+    // Adjust scheduled time: if offset is +330 (IST), subtract 330 minutes to get UTC
+    const scheduledUTCActual = scheduledUTC - offsetMs;
+    
+    const shouldShow = nowUTC >= scheduledUTCActual;
+    
+    console.log(`⏰ [Schedule Check] Now UTC: ${new Date(nowUTC).toISOString()}, Scheduled (local): ${year}-${month}-${day} ${hours}:${minutes}, Timezone offset: ${timezoneOffset}min, Scheduled UTC: ${new Date(scheduledUTCActual).toISOString()}, Show: ${shouldShow}`);
+    
     // Return true if scheduled time has passed
-    return now >= scheduledDateTime;
+    return shouldShow;
   } catch (error) {
     console.error('Error parsing task schedule:', error);
     return true; // Show task on error to be safe
@@ -261,11 +276,14 @@ const createTask = async (req, res) => {
       status,
       assignDate,
       assignTime,
+      timezoneOffset, // Timezone offset in minutes from UTC
       category,
       estimatedHours,
       tags,
       notes,
-      attachments // array of file paths
+      attachments, // array of file paths
+      post_content, // Post content for approval workflow
+      post_status // Post status (pending/approved/rejected/posted)
     } = req.body;
 
     // Validate required fields
@@ -383,6 +401,7 @@ const createTask = async (req, res) => {
       status: status || 'pending',
       assign_date: assignDate || null,
       assign_time: assignTime || null,
+      timezone_offset: timezoneOffset !== undefined ? timezoneOffset : 0, // Store timezone offset
       created_by_type: 'admin', // Admin-created task
       is_visible_to_client: true, // Make task visible to client
       category: category?.trim() || null,
@@ -390,7 +409,9 @@ const createTask = async (req, res) => {
       tags: tags?.trim() || null,
       notes: notes?.trim() || null,
       attachments: attachments && attachments.length > 0 ? JSON.stringify(attachments) : null,
-      created_by: createdBy
+      created_by: createdBy,
+      post_content: post_content ? (typeof post_content === 'string' ? post_content : JSON.stringify(post_content)) : null, // Store post content (as JSON string if object)
+      post_status: post_status || (post_content ? 'pending' : null) // Default to 'pending' if post_content is provided
     });
 
     console.log('✅ [CREATE TASK] Admin task created successfully:', {
@@ -398,7 +419,9 @@ const createTask = async (req, res) => {
       title: task.title,
       clientId: task.assigned_to_client_id,
       profileId: task.assigned_to_profile_id,
-      createdByType: task.created_by_type
+      createdByType: task.created_by_type,
+      hasPostContent: !!task.post_content,
+      postStatus: task.post_status
     });
     console.log('═══════════════════════════════════════════════════════');
 
@@ -425,7 +448,7 @@ const createTask = async (req, res) => {
     // ✅ Send notifications based on assigned date/time
     // If no date OR date/time is now/past → send immediately
     // If date/time is in future → cron job will send at scheduled time
-    const shouldSendImmediately = !assignDate || isTaskScheduledForNowOrPast(assignDate, assignTime);
+    const shouldSendImmediately = !assignDate || isTaskScheduledForNowOrPast(assignDate, assignTime, timezoneOffset);
 
     if (shouldSendImmediately) {
       // Send WhatsApp notification to assigned client
@@ -1066,7 +1089,7 @@ const getMyTasks = async (req, res) => {
 
     // Filter tasks to only show those that have reached their scheduled date/time
     const tasks = allTasks.filter(task => {
-      return isTaskScheduledForNowOrPast(task.assign_date, task.assign_time);
+      return isTaskScheduledForNowOrPast(task.assign_date, task.assign_time, task.timezone_offset);
     });
 
     console.log(`📋 Filtered ${tasks.length} tasks out of ${allTasks.length} for user ${userId} (hiding future scheduled tasks)`);
@@ -1168,14 +1191,8 @@ const getProfileTasks = async (req, res) => {
         return false;
       }
       
-      // Always show ADMIN-created tasks regardless of schedule time
-      const createdByType = (task.created_by_type || '').toString().toLowerCase();
-      if (createdByType === 'admin') {
-        return true;
-      }
-
-      // Check if task is scheduled for now or past (applies to AI/default tasks)
-      return isTaskScheduledForNowOrPast(task.assign_date, task.assign_time);
+      // Check if task is scheduled for now or past (applies to ALL tasks, admin included)
+      return isTaskScheduledForNowOrPast(task.assign_date, task.assign_time, task.timezone_offset);
     });
 
     // Deduplicate tasks by display-intent while PREFERRING ADMIN tasks over AI
@@ -1286,6 +1303,7 @@ const bulkAssignTask = async (req, res) => {
       estimatedHours,
       assignDate,
       assignTime,
+      timezoneOffset, // Timezone offset in minutes from UTC
       tags,
       attachments, // array of file paths
       assignToAll, // true = assign to all users
@@ -1385,6 +1403,7 @@ const bulkAssignTask = async (req, res) => {
           estimated_hours: estimatedHours,
           assign_date: assignDate,
           assign_time: assignTime,
+          timezone_offset: timezoneOffset !== undefined ? timezoneOffset : 0, // Store timezone offset
           tags,
           attachments: attachments && attachments.length > 0 ? JSON.stringify(attachments) : null,
           created_by: createdBy,
@@ -1395,7 +1414,7 @@ const bulkAssignTask = async (req, res) => {
         createdTasks.push(task);
 
         // ✅ NEW: Send immediate notifications if task is scheduled for now/past
-        const shouldSendImmediately = !assignDate || isTaskScheduledForNowOrPast(assignDate, assignTime);
+        const shouldSendImmediately = !assignDate || isTaskScheduledForNowOrPast(assignDate, assignTime, timezoneOffset);
         
         if (shouldSendImmediately) {
           // Get client details for notifications
@@ -1761,7 +1780,7 @@ const processScheduledNotifications = async (req, res) => {
 
     for (const task of allTasks) {
       // Check if this task's scheduled time has arrived
-      if (isTaskScheduledForNowOrPast(task.assign_date, task.assign_time)) {
+      if (isTaskScheduledForNowOrPast(task.assign_date, task.assign_time, task.timezone_offset)) {
         processedCount++;
 
         // Send WhatsApp notification
@@ -1837,6 +1856,379 @@ const processScheduledNotifications = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Approve a post task and create GMB post
+ * @route   POST /api/customer/task/approve-post/:taskId
+ * @access  Customer
+ */
+const approvePostTask = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.body.current_user?.id || req.user?.id;
+
+    if (!userId) {
+      console.error('❌ approvePostTask: No user ID found');
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+    }
+
+    console.log(`📝 [APPROVE POST] Task ${taskId} by user ${userId}`);
+
+    // Find the task
+    const task = await Task.findOne({
+      where: {
+        id: taskId,
+        assigned_to_client_id: userId
+      }
+    });
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found or not assigned to you'
+      });
+    }
+
+    // Check if task has post content
+    if (!task.post_content) {
+      return res.status(400).json({
+        success: false,
+        message: 'This task does not have post content'
+      });
+    }
+
+    // Parse post content
+    const postContent = JSON.parse(task.post_content);
+    console.log('📄 Post content:', postContent);
+
+    // Get user's Google access token
+    const user = await User.findByPk(userId);
+    
+    if (!user || !user.google_access_token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Google access token not found. Please reconnect your Google account.'
+      });
+    }
+
+    // Extract account ID and location ID from task
+    // The assigned_to_profile_id is usually just the location ID (numeric)
+    // We need to get the account ID from the GMB account table
+    let locationId = task.assigned_to_profile_id;
+    let accountId = null;
+    
+    // Remove "locations/" prefix if present
+    if (locationId?.includes('locations/')) {
+      locationId = locationId.split('/')[1];
+    }
+    
+    // Try to get account ID from GMB account table
+    const gmbAccount = await GmbAccount.findOne({
+      where: { 
+        user_id: userId, 
+        [Op.or]: [
+          { location_id: task.assigned_to_profile_id },
+          { location_id: `locations/${locationId}` },
+          { location_id: locationId }
+        ]
+      }
+    });
+    
+    if (!gmbAccount) {
+      return res.status(400).json({
+        success: false,
+        message: 'GMB account information not found. Please reconnect your Google Business account.'
+      });
+    }
+    
+    accountId = gmbAccount.account_id;
+    
+    // Ensure IDs are in correct format (numeric only, no prefixes)
+    if (accountId?.includes('accounts/')) {
+      accountId = accountId.split('/')[1];
+    }
+    if (locationId?.includes('locations/')) {
+      locationId = locationId.split('/')[1];
+    }
+
+    console.log('🔍 [APPROVE POST] GMB credentials:', {
+      accountId,
+      locationId,
+      hasAccessToken: !!user.google_access_token,
+      gmbAccountFound: !!gmbAccount
+    });
+
+    // Create GMB post using the local post API
+    try {
+      const axios = require('axios');
+      
+      // Build post data for GMB API
+      const gmbPostData = {
+        languageCode: 'en',
+        summary: postContent.summary,
+        topicType: postContent.topicType || 'STANDARD'
+      };
+
+      // Handle media (base64 images)
+      if (postContent.media && postContent.media.length > 0) {
+        // Convert base64 to buffer and upload
+        const mediaItem = postContent.media[0];
+        console.log('🖼️ [APPROVE POST] Processing media:', {
+          hasSourceUrl: !!mediaItem.sourceUrl,
+          sourceUrlLength: mediaItem.sourceUrl?.length || 0,
+          startsWithDataImage: mediaItem.sourceUrl?.startsWith('data:image') || false,
+          mediaFormat: mediaItem.mediaFormat
+        });
+        
+        if (mediaItem.sourceUrl && mediaItem.sourceUrl.startsWith('data:image')) {
+          try {
+            // Extract base64 data and determine mime type
+            const matches = mediaItem.sourceUrl.match(/^data:image\/(\w+);base64,(.+)$/);
+            if (!matches) {
+              throw new Error('Invalid base64 image format');
+            }
+            
+            const imageType = matches[1]; // png, jpeg, jpg, etc.
+            const base64Data = matches[2];
+            const buffer = Buffer.from(base64Data, 'base64');
+            
+            console.log('🔍 [APPROVE POST] Image details:', {
+              imageType,
+              bufferSize: buffer.length,
+              base64Length: base64Data.length
+            });
+            
+            // Save to temporary file and create public URL (GMB requires public URLs)
+            const path = require('path');
+            const fs = require('fs');
+            
+            const uploadsDir = path.join(__dirname, '../../uploads/temp');
+            if (!fs.existsSync(uploadsDir)) {
+              fs.mkdirSync(uploadsDir, { recursive: true });
+            }
+            
+            const tempFileName = `gmb_post_${Date.now()}.${imageType}`;
+            const tempFilePath = path.join(uploadsDir, tempFileName);
+            
+            // Write buffer to file
+            fs.writeFileSync(tempFilePath, buffer);
+            console.log('💾 [APPROVE POST] Saved temp file:', tempFileName);
+            
+            // Create public URL
+            const publicUrl = `${process.env.PUBLIC_URL || 'http://localhost:5000'}/uploads/temp/${tempFileName}`;
+            console.log('🌐 [APPROVE POST] Public URL:', publicUrl);
+            
+            // Upload to GMB using public URL approach
+            const createMediaUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/media`;
+            
+            const mediaData = {
+              mediaFormat: 'PHOTO',
+              locationAssociation: {
+                category: 'ADDITIONAL'
+              },
+              sourceUrl: publicUrl
+            };
+            
+            console.log('📤 [APPROVE POST] Uploading to GMB with public URL...');
+            const uploadResponse = await axios.post(
+              createMediaUrl,
+              mediaData,
+              {
+                headers: {
+                  'Authorization': `Bearer ${user.google_access_token}`,
+                  'Content-Type': 'application/json'
+                }
+              }
+            );
+
+            console.log('✅ [APPROVE POST] Media upload response:', {
+              googleUrl: uploadResponse.data.googleUrl,
+              sourceUrl: uploadResponse.data.sourceUrl,
+              name: uploadResponse.data.name
+            });
+
+            gmbPostData.media = [{
+              mediaFormat: 'PHOTO',
+              sourceUrl: uploadResponse.data.googleUrl || uploadResponse.data.sourceUrl
+            }];
+            
+            // Clean up temp file
+            try {
+              fs.unlinkSync(tempFilePath);
+              console.log('🗑️ [APPROVE POST] Cleaned up temp file');
+            } catch (cleanupError) {
+              console.warn('⚠️ [APPROVE POST] Failed to clean up temp file:', cleanupError.message);
+            }
+            
+            console.log('✅ [APPROVE POST] Media uploaded to GMB successfully');
+          } catch (mediaError) {
+            console.error('❌ [APPROVE POST] Media upload failed:', {
+              error: mediaError.message,
+              response: mediaError.response?.data,
+              status: mediaError.response?.status
+            });
+            // Continue without media rather than failing entirely
+            console.log('⚠️ [APPROVE POST] Continuing post creation without media');
+          }
+        }
+      }
+
+      // Add call to action if provided
+      if (postContent.callToAction) {
+        gmbPostData.callToAction = postContent.callToAction;
+      }
+
+      // Check if this is a scheduled post (has future scheduledFor date)
+      let scheduledTime = null;
+      
+      if (postContent.scheduledFor) {
+        scheduledTime = new Date(postContent.scheduledFor);
+        const now = new Date();
+        
+        // If scheduled time is in the future, add it to post data
+        if (scheduledTime > now) {
+          // Add schedule time to post data in RFC 3339 format
+          gmbPostData.scheduledTime = scheduledTime.toISOString();
+          console.log(`📅 [APPROVE POST] Scheduling post for: ${scheduledTime.toLocaleString()}`);
+          console.log(`📅 [APPROVE POST] Scheduled time (ISO): ${gmbPostData.scheduledTime}`);
+        } else {
+          console.log('⚡ [APPROVE POST] Scheduled time is in the past, posting immediately');
+        }
+      } else {
+        console.log('⚡ [APPROVE POST] No schedule time, posting immediately');
+      }
+
+      // Always use the regular /localPosts endpoint
+      // GMB API will schedule automatically if scheduledTime is in the future
+      const createPostUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/localPosts`;
+      
+      console.log(`🔗 [APPROVE POST] Using endpoint: /localPosts ${gmbPostData.scheduledTime ? '(with scheduledTime)' : '(immediate)'}`);
+      console.log('📦 [APPROVE POST] Post data being sent:', {
+        languageCode: gmbPostData.languageCode,
+        summary: gmbPostData.summary?.substring(0, 50) + '...',
+        topicType: gmbPostData.topicType,
+        hasMedia: !!gmbPostData.media,
+        mediaCount: gmbPostData.media?.length || 0,
+        hasCallToAction: !!gmbPostData.callToAction,
+        hasScheduledTime: !!gmbPostData.scheduledTime,
+        scheduledTime: gmbPostData.scheduledTime
+      });
+      
+      const createPostResponse = await axios.post(
+        createPostUrl,
+        gmbPostData,
+        {
+          headers: {
+            'Authorization': `Bearer ${user.google_access_token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const localPost = createPostResponse.data;
+      const isScheduled = !!gmbPostData.scheduledTime;
+      console.log(`✅ [APPROVE POST] Post ${isScheduled ? 'scheduled' : 'created'} on GMB:`, localPost.name);
+      if (isScheduled) {
+        console.log(`📅 [APPROVE POST] Will be published at: ${gmbPostData.scheduledTime}`);
+      }
+
+      // Update task status to posted
+      await task.update({
+        post_status: 'posted',
+        status: 'completed',
+        completed_at: new Date()
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Post approved and published to Google My Business successfully!',
+        data: {
+          task,
+          postContent,
+          gmbPost: localPost
+        }
+      });
+
+    } catch (gmbError) {
+      console.error('❌ [APPROVE POST] Error creating GMB post:', gmbError.response?.data || gmbError.message);
+      
+      // Update task to approved but note the GMB error
+      await task.update({
+        post_status: 'approved',
+        status: 'in-progress'
+      });
+
+      return res.status(500).json({
+        success: false,
+        message: `Post approved but failed to publish to GMB: ${gmbError.response?.data?.error?.message || gmbError.message}`,
+        data: { task, postContent }
+      });
+    }
+
+  } catch (error) {
+    console.error('Error in approvePostTask:', error);
+    return REST.error(res, error.message, 500);
+  }
+};
+
+/**
+ * @desc    Reject a post task
+ * @route   POST /api/customer/task/reject-post/:taskId
+ * @access  Customer
+ */
+const rejectPostTask = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { reason } = req.body;
+    const userId = req.body.current_user?.id || req.user?.id;
+
+    if (!userId) {
+      console.error('❌ rejectPostTask: No user ID found');
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+    }
+
+    console.log(`❌ [REJECT POST] Task ${taskId} by user ${userId}, reason: ${reason}`);
+
+    // Find the task
+    const task = await Task.findOne({
+      where: {
+        id: taskId,
+        assigned_to_client_id: userId
+      }
+    });
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found or not assigned to you'
+      });
+    }
+
+    // Update task status to rejected
+    await task.update({
+      post_status: 'rejected',
+      status: 'cancelled',
+      notes: task.notes ? `${task.notes}\n\nRejection reason: ${reason || 'Not specified'}` : `Rejection reason: ${reason || 'Not specified'}`
+    });
+
+    console.log('✅ Task rejected');
+
+    return res.status(200).json({
+      success: true,
+      message: 'Post task rejected successfully'
+    });
+
+  } catch (error) {
+    console.error('Error in rejectPostTask:', error);
+    return REST.error(res, error.message, 500);
+  }
+};
+
 module.exports = {
   getTasks,
   getTaskById,
@@ -1852,6 +2244,8 @@ module.exports = {
   getTasksByClient,
   getTaskStatistics,
   bulkUpdateStatus,
+  approvePostTask,
+  rejectPostTask,
   uploadTaskPhotoToGMB,
   processScheduledNotifications
 };

@@ -95,4 +95,21 @@ router.post('/upload-photo-to-gmb', isAdmin, taskController.uploadTaskPhotoToGMB
  */
 router.post('/process-scheduled-notifications', isAdmin, taskController.processScheduledNotifications);
 
+/**
+ * @route   POST /api/customer/task/approve-post/:taskId
+ * @desc    Approve a post task and prepare for GMB posting
+ * @access  Customer
+ * @params  taskId - Task ID
+ */
+router.post('/approve-post/:taskId', taskController.approvePostTask);
+
+/**
+ * @route   POST /api/customer/task/reject-post/:taskId
+ * @desc    Reject a post task
+ * @access  Customer
+ * @params  taskId - Task ID
+ * @body    reason - Rejection reason (optional)
+ */
+router.post('/reject-post/:taskId', taskController.rejectPostTask);
+
 module.exports = router;

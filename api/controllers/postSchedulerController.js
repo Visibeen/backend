@@ -29,14 +29,7 @@ const schedulePostWithImage = async (req, res) => {
       category = 'ADDITIONAL'
     } = req.body;
     
-    const accessToken = req.headers.authorization?.replace('Bearer ', '');
-    const cUser = req.body.current_user;
-
-    // Validation
-    if (!accessToken) {
-      await transaction.rollback();
-      return REST.error(res, 'Access token is required', 401);
-    }
+    const cUser = req.body.current_user || req.user;
 
     if (!accountId || !locationId) {
       await transaction.rollback();
@@ -48,7 +41,29 @@ const schedulePostWithImage = async (req, res) => {
       return REST.error(res, 'Post name and scheduled time are required', 400);
     }
 
+    // Load user's Google token from DB
+    const user = await models.User.findOne({ where: { id: cUser?.id } });
+    const googleAccessToken = user?.google_access_token;
+    if (!googleAccessToken) {
+      await transaction.rollback();
+      return REST.error(
+        res,
+        'Google account not connected. Please sign in with Google to enable scheduling.',
+        400
+      );
+    }
+
     let mediaUrl = null;
+
+    // Normalize IDs (strip prefixes if present)
+    let normAccountId = accountId;
+    let normLocationId = locationId;
+    if (typeof normAccountId === 'string' && normAccountId.includes('accounts/')) {
+      normAccountId = normAccountId.split('/').pop();
+    }
+    if (typeof normLocationId === 'string' && normLocationId.includes('locations/')) {
+      normLocationId = normLocationId.split('/').pop();
+    }
 
     // If image is provided, upload to GMB first
     if (req.files && req.files.image) {
@@ -86,10 +101,13 @@ const schedulePostWithImage = async (req, res) => {
       // Create public URL
       const publicUrl = `${process.env.PUBLIC_URL || 'http://localhost:5000'}/uploads/temp/${tempFileName}`;
       console.log('🔗 [Schedule Post] Public URL:', publicUrl);
+      if (/localhost|127\.0\.0\.1/.test(publicUrl)) {
+        console.warn('⚠️ [Schedule Post] PUBLIC_URL is localhost; Google cannot fetch local URLs. Use a public domain (e.g., https://api.visibeen.com or an ngrok URL).');
+      }
       
       // Upload to GMB
       console.log('🔄 [Schedule Post] Uploading image to GMB...');
-      const createMediaUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/media`;
+      const createMediaUrl = `https://mybusiness.googleapis.com/v4/accounts/${normAccountId}/locations/${normLocationId}/media`;
       
       const mediaData = {
         mediaFormat: 'PHOTO',
@@ -104,10 +122,10 @@ const schedulePostWithImage = async (req, res) => {
           createMediaUrl,
           mediaData,
           {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
-            }
+          headers: {
+            'Authorization': `Bearer ${googleAccessToken}`,
+            'Content-Type': 'application/json'
+          }
           }
         );
 
@@ -124,6 +142,12 @@ const schedulePostWithImage = async (req, res) => {
       } catch (uploadError) {
         await transaction.rollback();
         console.error('❌ [Schedule Post] Failed to upload image to GMB:', uploadError.message);
+        if (uploadError.response) {
+          console.error('❌ [Schedule Post] GMB API Error:', {
+            status: uploadError.response.status,
+            data: uploadError.response.data
+          });
+        }
         
         // Clean up temp file on error
         try {
@@ -132,20 +156,37 @@ const schedulePostWithImage = async (req, res) => {
           // Ignore cleanup errors
         }
         
-        return REST.error(res, 'Failed to upload image to GMB: ' + uploadError.message, 500);
+        return REST.error(res, 'Failed to upload image to GMB: ' + (uploadError.response?.data?.error?.message || uploadError.message), uploadError.response?.status || 500);
       }
     }
 
+    // Capture additional GMB post data if provided and store as JSON in description
+    const {
+      summary,
+      topicType,
+      actionType,
+      actionUrl
+    } = req.body;
+
+    const descriptionPayload = {
+      accountId,
+      locationId,
+      summary: summary || '',
+      topicType: topicType || 'STANDARD',
+      callToAction: actionType ? { actionType, ...(actionType !== 'CALL' && actionUrl ? { url: actionUrl } : {}) } : null,
+      media: mediaUrl ? { mediaFormat: 'PHOTO', sourceUrl: mediaUrl } : null
+    };
+
     // Create scheduled post in database
     const newPost = await models.post_scheduler.create({
-      user_id: cUser.id,
+      user_id: cUser?.id,
       post_name: post_name,
       post_url: mediaUrl || '',
       scheduled_time: scheduled_time,
       title: title || '',
-      description: description || '',
+      description: description ? description : JSON.stringify(descriptionPayload),
       status: true,
-      created_by: cUser.id,
+      created_by: cUser?.id,
     }, { transaction });
 
     await transaction.commit();
@@ -164,6 +205,101 @@ const schedulePostWithImage = async (req, res) => {
   }
 };
 
+/**
+ * Process due scheduled posts and publish to GMB
+ * This should be run by a scheduler (e.g., every minute)
+ */
+const processDueScheduledPosts = async () => {
+  const now = new Date();
+  console.log(`⏳ [Post Scheduler] Checking for due posts at ${now.toISOString()}`);
+
+  try {
+    // Find posts scheduled at or before now and still pending (status = true)
+    const duePosts = await models.post_scheduler.findAll({
+      where: {
+        status: true,
+        scheduled_time: { [models.Sequelize.Op.lte]: now }
+      },
+      order: [['scheduled_time', 'ASC']]
+    });
+
+    if (!duePosts.length) {
+      return { processed: 0 };
+    }
+
+    let processed = 0;
+    for (const post of duePosts) {
+      try {
+        // Parse description payload if JSON
+        let payload = {};
+        if (post.description) {
+          try {
+            payload = JSON.parse(post.description);
+          } catch (_) {
+            payload = {};
+          }
+        }
+
+        const accountId = payload.accountId;
+        const locationId = payload.locationId;
+        const summary = payload.summary || post.title || 'Scheduled Post';
+        const topicType = payload.topicType || 'STANDARD';
+        const media = payload.media || (post.post_url ? { mediaFormat: 'PHOTO', sourceUrl: post.post_url } : null);
+        const callToAction = payload.callToAction || null;
+
+        if (!accountId || !locationId) {
+          console.warn(`⚠️ [Post Scheduler] Skipping post ${post.id} - missing account/location IDs`);
+          // Mark as failed to avoid infinite loop
+          await post.update({ status: false });
+          continue;
+        }
+
+        // Get user's Google token
+        const user = await models.User.findOne({ where: { id: post.user_id } });
+        if (!user || !user.google_access_token) {
+          console.warn(`⚠️ [Post Scheduler] Skipping post ${post.id} - missing user token`);
+          await post.update({ status: false });
+          continue;
+        }
+
+        const gmbPostData = {
+          languageCode: 'en',
+          summary: summary,
+          topicType: topicType
+        };
+        if (media) {
+          gmbPostData.media = [media];
+        }
+        if (callToAction) {
+          gmbPostData.callToAction = callToAction;
+        }
+
+        const createPostUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/localPosts`;
+        await axios.post(createPostUrl, gmbPostData, {
+          headers: {
+            Authorization: `Bearer ${user.google_access_token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        await post.update({ status: false });
+        processed += 1;
+        console.log(`✅ [Post Scheduler] Posted scheduled item ${post.id} to GMB`);
+      } catch (err) {
+        console.error(`❌ [Post Scheduler] Failed to post scheduled item ${post.id}:`, err.response?.data || err.message);
+        // Mark as failed to avoid retry loop for now
+        await post.update({ status: false });
+      }
+    }
+
+    return { processed };
+  } catch (error) {
+    console.error('❌ [Post Scheduler] Error processing due posts:', error.message);
+    return { processed: 0, error: error.message };
+  }
+};
+
 module.exports = {
-  schedulePostWithImage
+  schedulePostWithImage,
+  processDueScheduledPosts
 };
