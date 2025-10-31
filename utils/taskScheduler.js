@@ -7,8 +7,9 @@
 const cron = require('node-cron');
 const axios = require('axios');
 
-// Import the controller directly for internal use (no HTTP request)
+// Import the controllers directly for internal use (no HTTP request)
 const taskController = require('../api/controllers/taskController');
+const postSchedulerController = require('../api/controllers/postSchedulerController');
 
 /**
  * Initialize task scheduler
@@ -40,9 +41,28 @@ const initializeTaskScheduler = () => {
     }
   });
 
+  // Scheduled GMB posts processor
+  const postScheduleInterval = process.env.POST_SCHEDULER_INTERVAL || '*/5 * * * *';
+  cron.schedule(postScheduleInterval, async () => {
+    const now = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+    console.log(`\n⏰ [POST SCHEDULER] Running at ${now}...`);
+
+    try {
+      const result = await postSchedulerController.processDueScheduledPosts();
+      if (result.processed > 0) {
+        console.log(`✅ [POST SCHEDULER] Posted ${result.processed} scheduled GMB posts`);
+      } else {
+        console.log('✅ [POST SCHEDULER] No due scheduled GMB posts found');
+      }
+    } catch (error) {
+      console.error('❌ [POST SCHEDULER] Error processing scheduled GMB posts:', error.message);
+    }
+  });
+
   console.log(`✅ [TASK SCHEDULER] Scheduler initialized - checking every 10 minutes`);
   console.log(`📋 [TASK SCHEDULER] Schedule pattern: ${scheduleInterval}`);
   console.log(`📧 [TASK SCHEDULER] Emails will be sent via ZeptoMail when tasks reach their scheduled time\n`);
+  console.log(`📅 [POST SCHEDULER] Posts processor initialized - pattern: ${postScheduleInterval}`);
 };
 
 module.exports = { initializeTaskScheduler };

@@ -19,7 +19,16 @@ global.constants = require("./constants/index");
 const { initSocket } = require('./socket');
 const app = express();
 
-const allowedOrigins = ['https://visibeen.com', 'https://www.visibeen.com','https://api.visibeen.com','https://directory.visibeen.com','http://localhost:8089', 'http://localhost:3000','http://localhost:3001'];
+const allowedOrigins = [
+    'https://visibeen.com',
+    'https://www.visibeen.com',
+    'https://api.visibeen.com',
+    'https://directory.visibeen.com',
+    'https://d15k7zonajfgz7.cloudfront.net',
+    'http://localhost:8089',
+    'http://localhost:3000',
+    'http://localhost:3001'
+];
 app.use(
     cors({
         origin: allowedOrigins,
@@ -30,8 +39,8 @@ app.use(
 );
 
 app.options("*", cors({ origin: allowedOrigins, credentials: true }));
-app.use(express.json())
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' })) // Increased limit for base64 images
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 app.use(fileUpload({ createParentPath: true, limits: { fileSize: config.limit_file_size } }));
 
 // Serve static files from uploads directory

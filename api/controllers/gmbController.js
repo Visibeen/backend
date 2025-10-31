@@ -431,9 +431,33 @@ const createLocalPost = async (req, res) => {
       }
     }
 
-    // Create local post
-    console.log('🔄 [GMB Local Post] Creating post in GMB feed...');
+    // Check if this is a scheduled post (has future scheduledDateTime)
+    const { scheduledDateTime } = req.body;
+    let scheduledTime = null;
+    
+    if (scheduledDateTime) {
+      scheduledTime = new Date(scheduledDateTime);
+      const now = new Date();
+      
+      // If scheduled time is in the future, add it to post data
+      if (scheduledTime > now) {
+        // Add schedule time to post data in RFC 3339 format
+        postData.scheduledTime = scheduledTime.toISOString();
+        console.log(`📅 [GMB Local Post] Scheduling post for: ${scheduledTime.toLocaleString()}`);
+        console.log(`📅 [GMB Local Post] Scheduled time (ISO): ${postData.scheduledTime}`);
+      } else {
+        console.log('⚡ [GMB Local Post] Scheduled time is in the past, posting immediately');
+      }
+    } else {
+      console.log('⚡ [GMB Local Post] No schedule time, posting immediately');
+    }
+
+    // Always use the regular /localPosts endpoint
+    // GMB API will schedule automatically if scheduledTime is in the future
     const createPostUrl = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/localPosts`;
+    
+    console.log(`🔗 [GMB Local Post] Using endpoint: /localPosts ${postData.scheduledTime ? '(with scheduledTime)' : '(immediate)'}`);
+    console.log('🔄 [GMB Local Post] Creating post in GMB feed...');
     
     const createPostResponse = await axios.post(
       createPostUrl,
@@ -447,7 +471,11 @@ const createLocalPost = async (req, res) => {
     );
 
     const localPost = createPostResponse.data;
-    console.log('✅ [GMB Local Post] Post created successfully:', localPost.name);
+    const isScheduled = !!postData.scheduledTime;
+    console.log(`✅ [GMB Local Post] Post ${isScheduled ? 'scheduled' : 'created'} successfully:`, localPost.name);
+    if (isScheduled) {
+      console.log(`📅 [GMB Local Post] Will be published at: ${postData.scheduledTime}`);
+    }
 
     return REST.success(res, {
       localPost: {
@@ -457,9 +485,10 @@ const createLocalPost = async (req, res) => {
         createTime: localPost.createTime,
         updateTime: localPost.updateTime,
         media: localPost.media,
-        callToAction: localPost.callToAction
+        callToAction: localPost.callToAction,
+        scheduledTime: localPost.scheduledTime
       }
-    }, 'Local post created successfully in GMB feed');
+    }, `Local post ${isScheduled ? 'scheduled' : 'created'} successfully in GMB feed`);
 
   } catch (error) {
     console.error('❌ [GMB Local Post] Error:', error.message);

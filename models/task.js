@@ -171,6 +171,23 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true,
       comment: 'Time when task is assigned to GMB profile'
     },
+    timezone_offset: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 0,
+      comment: 'Timezone offset in minutes from UTC (e.g., IST = +330, EST = -300)'
+    },
+    post_content: {
+      type: DataTypes.TEXT('long'), // LONGTEXT to support base64 images
+      allowNull: true,
+      comment: 'JSON string containing GMB post data (summary, topicType, media with base64 images, etc.)'
+    },
+    post_status: {
+      type: DataTypes.ENUM('pending', 'approved', 'rejected', 'posted'),
+      allowNull: true,
+      defaultValue: 'pending',
+      comment: 'Status of post approval workflow'
+    },
     created_by_type: {
       type: DataTypes.ENUM('admin', 'ai'),
       allowNull: false,
@@ -228,7 +245,7 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true
     },
     completion_data: {
-      type: DataTypes.TEXT,
+      type: DataTypes.TEXT('long'), // LONGTEXT to support large data like images
       allowNull: true,
       comment: 'JSON string containing task completion data (description, photos, hours, etc.)'
     },
